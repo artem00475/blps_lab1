@@ -52,4 +52,17 @@ public class PickupService {
         }
     }
 
+    public void addOrder(Orders order) {
+        Pickup pickup = new Pickup();
+        pickup.setOrder(order);
+        pickup.setReceiveStatus(receiveStatusRepository.findByType("Новый"));
+        pickupRepository.save(pickup);
+    }
+
+    public void updateOrder(Orders order) {
+        Pickup pickup = pickupRepository.findPickupByOrder(order);
+        pickup.setReceiveStatus(receiveStatusRepository.findByType("Ожидает обработки"));
+        pickupRepository.save(pickup);
+    }
+
 }

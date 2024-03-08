@@ -3,12 +3,11 @@ package tuchin_emelianov.blps_lab_1.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import tuchin_emelianov.blps_lab_1.jpa.entity.Orders;
 import tuchin_emelianov.blps_lab_1.request.AddRequest;
 import tuchin_emelianov.blps_lab_1.request.SetPaymentTypeRequest;
 import tuchin_emelianov.blps_lab_1.request.SetReceiveTypeRequest;
-import tuchin_emelianov.blps_lab_1.service.HumanService;
-import tuchin_emelianov.blps_lab_1.service.OrderService;
-import tuchin_emelianov.blps_lab_1.service.ResultMessage;
+import tuchin_emelianov.blps_lab_1.service.*;
 
 @RestController
 public class OrderController {
@@ -16,6 +15,10 @@ public class OrderController {
     private HumanService humanService;
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private PickupService pickupService;
+    @Autowired
+    private DeliveryService deliveryService;
 
     @PostMapping("/add")
     public ResponseEntity<ResultMessage> addOrder(@RequestBody AddRequest addRequest) {
@@ -51,10 +54,15 @@ public class OrderController {
             if (orderService.checkOrder(receiveTypeRequest.getId())) {
                 return ResponseEntity.status(406).body(new ResultMessage(0,"Заказ не найден."));
             }
-            ResultMessage resultMessage = orderService.setReceiveType(receiveTypeRequest.getId(), receiveTypeRequest.getType(), receiveTypeRequest.getAddress() != null ? receiveTypeRequest.getAddress() : "");
-            if (resultMessage.getId() > 0)
+            ResultMessage resultMessage = orderService.setReceiveType(receiveTypeRequest.getId(), receiveTypeRequest.getType());
+            if (resultMessage.getId() > 0) {
+                if (receiveTypeRequest.getType().equals("Самовывоз")) {
+                    pickupService.addOrder(orderService.getOrder(receiveTypeRequest.getId()));
+                } else {
+                    deliveryService.addOrder(orderService.getOrder(receiveTypeRequest.getId()), receiveTypeRequest.getAddress());
+                }
                 return ResponseEntity.ok(resultMessage);
-            else {
+            } else {
                 return ResponseEntity.status(406).body(resultMessage);
             }
         }
@@ -134,6 +142,12 @@ public class OrderController {
         }
         ResultMessage resultMessage = orderService.done(id, humanService.getUser(user));
         if (resultMessage.getId() > 0) {
+            Orders order = orderService.getOrder(id);
+            if (order.getReceiveType().getType().equals("Самовывоз")) {
+                pickupService.updateOrder(order);
+            } else {
+                deliveryService.updateOrder(order);
+            }
             return ResponseEntity.ok(resultMessage);
         } else {
             return ResponseEntity.status(406).body(resultMessage);

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
 import java.util.Date;
+
 @Service
 public class DeliveryService {
 
@@ -16,7 +17,7 @@ public class DeliveryService {
 
     public ResultMessage takeOrder (Orders order, Human courier){
         if (!deliveryRepository.existsByOrder(order)) {
-            return new ResultMessage(0, "Заказ не найден в списке на выдачу");
+            return new ResultMessage(0, "Заказ не найден в списке на доставку");
         }
         Delivery delivery = deliveryRepository.findDeliveryByOrder(order);
         DeliveryStatus deliveryStatus = delivery.getStatus();
@@ -34,7 +35,7 @@ public class DeliveryService {
 
     public ResultMessage deliverOrder (Orders order, Human courier){
         if (!deliveryRepository.existsByOrder(order)) {
-            return new ResultMessage(0, "Заказ не найден в списке на выдачу");
+            return new ResultMessage(0, "Заказ не найден в списке на доставку");
         }
         Delivery delivery = deliveryRepository.findDeliveryByOrder(order);
         DeliveryStatus deliveryStatus = delivery.getStatus();
@@ -57,7 +58,7 @@ public class DeliveryService {
 
     public ResultMessage getOrder(Orders order, Human client){
         if (!deliveryRepository.existsByOrder(order)) {
-            return new ResultMessage(0, "Заказ не найден в списке на выдачу");
+            return new ResultMessage(0, "Заказ не найден в списке на доставку");
         }
         Delivery delivery = deliveryRepository.findDeliveryByOrder(order);
         DeliveryStatus deliveryStatus = delivery.getStatus();
@@ -79,6 +80,20 @@ public class DeliveryService {
         }else{
             return new ResultMessage(0, "Недопустимый статус доставки заказа (чтобы его получил клиент): " + deliveryStatusType);
         }
+    }
+
+    public void addOrder(Orders order, String address) {
+        Delivery delivery = new Delivery();
+        delivery.setOrder(order);
+        delivery.setAddress(address);
+        delivery.setStatus(deliveryStatusRepository.findByType("Новый"));
+        deliveryRepository.save(delivery);
+    }
+
+    public void updateOrder(Orders order) {
+        Delivery delivery = deliveryRepository.findDeliveryByOrder(order);
+        delivery.setStatus(deliveryStatusRepository.findByType("Ожидает обработки"));
+        deliveryRepository.save(delivery);
     }
 
 }

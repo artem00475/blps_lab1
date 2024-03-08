@@ -31,18 +31,6 @@ public class OrderService {
     @Autowired
     private PaymentTypeRepository paymentTypeRepository;
 
-    @Autowired
-    private ReceiveStatusRepository receiveStatusRepository;
-
-    @Autowired
-    private PickupRepository pickupRepository;
-
-    @Autowired
-    private DeliveryStatusRepository deliveryStatusRepository;
-
-    @Autowired
-    private DeliveryRepository deliveryRepository;
-
     public boolean checkOrder(Long id) {
         return !orderRepository.existsById(id);
     }
@@ -114,7 +102,7 @@ public class OrderService {
         return total;
     }
 
-    public ResultMessage setReceiveType(Long id, String type, String address) {
+    public ResultMessage setReceiveType(Long id, String type) {
         Orders order = orderRepository.findOrderById(id);
 
         if (order.getOrderStatus() != orderStatusRepository.findByType("Новый")) {
@@ -133,21 +121,7 @@ public class OrderService {
 
         orderRepository.save(order);
 
-        if (type.equals("Самовывоз")) {
-            Pickup pickup = new Pickup();
-            pickup.setOrder(order);
-            pickup.setReceiveStatus(receiveStatusRepository.findByType("Новый"));
-            pickupRepository.save(pickup);
-        } else {
-            Delivery delivery = new Delivery();
-            delivery.setOrder(order);
-            delivery.setAddress(address);
-            delivery.setStatus(deliveryStatusRepository.findByType("Новый"));
-            deliveryRepository.save(delivery);
-        }
-
         return new ResultMessage(order.getId(), "Cпособ получения успешно выбран! Вам необходимо выбрать способ оплаты.");
-
     }
 
     public ResultMessage setPaymentType(Long id, String type) {
@@ -189,7 +163,7 @@ public class OrderService {
     }
 
     public ResultMessage payDelivery(Orders order) {
-        if (order.getOrderStatus() == orderStatusRepository.findByType("Готов к выдаче") && order.getPaymentType() == paymentTypeRepository.findByType("При получении")) {
+        if (order.getOrderStatus() == orderStatusRepository.findByType("Передан в доставку") && order.getPaymentType() == paymentTypeRepository.findByType("При получении")) {
             order.setLastStatusDate(new Date());
             order.setOrderStatus(orderStatusRepository.findByType("Оплачен курьеру"));
             orderRepository.save(order);
@@ -232,14 +206,8 @@ public class OrderService {
 
 
         if (order.getReceiveType().equals(receiveTypeRepository.findByType("Доставка"))) {
-            Delivery delivery = deliveryRepository.findDeliveryByOrder(order);
-            delivery.setStatus(deliveryStatusRepository.findByType("Ожидает обработки"));
-            deliveryRepository.save(delivery);
             order.setOrderStatus(orderStatusRepository.findByType("Передан в доставку"));
         } else {
-            Pickup pickup = pickupRepository.findPickupByOrder(order);
-            pickup.setReceiveStatus(receiveStatusRepository.findByType("Ожидает обработки"));
-            pickupRepository.save(pickup);
             order.setOrderStatus(orderStatusRepository.findByType("Готов к выдаче"));
         }
         orderRepository.save(order);
