@@ -21,42 +21,42 @@ public class PickupController {
     @GetMapping("/pickup/work")
     public ResponseEntity<ResultMessage> work(@RequestParam Long id, @RequestParam Long user) {
         if (id <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный номер заказа."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
         if (user <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный пользователь."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
         }
         if (humanService.checkWorker(user)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Работник не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Работник не найден."));
         }
         if (orderService.checkOrder(id)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Заказ не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
         ResultMessage resultMessage = pickupService.giveOrder(orderService.getOrder(id), humanService.getUser(user));
         if (resultMessage.getId() > 0) {
             return ResponseEntity.ok(resultMessage);
         } else {
-            return ResponseEntity.status(406).body(resultMessage);
+            return ResponseEntity.badRequest().body(resultMessage);
         }
     }
 
     @GetMapping("/pickup/get")
     public ResponseEntity<ResultMessage> get(@RequestParam Long id, @RequestParam Long user) {
         if (id <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный номер заказа."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
         if (orderService.checkOrder(id)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Заказ не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
         if (user <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный пользователь."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
         }
         if (humanService.checkUser(user)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Пользователь не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Пользователь не найден."));
         }
         ResultMessage resultMessage = pickupService.getOrder(orderService.getOrder(id), humanService.getUser(user));
         if (resultMessage.getId() == 0) {
-            return ResponseEntity.status(406).body(resultMessage);
+            return ResponseEntity.badRequest().body(resultMessage);
         } else {
             orderService.closeOrder(id);
             return ResponseEntity.ok(resultMessage);

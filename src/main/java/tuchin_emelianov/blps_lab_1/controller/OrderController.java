@@ -27,23 +27,23 @@ public class OrderController {
             if (addRequest.getFio() != null && addRequest.getMail() != null && addRequest.getPhone() != null) {
                 userId = humanService.addUser(addRequest.getFio(), addRequest.getMail(), addRequest.getPhone());
                 if (userId < 1)
-                    return ResponseEntity.status(406).body(new ResultMessage(0, "Ошибка при создании пользователя"));
+                    return ResponseEntity.badRequest().body(new ResultMessage(0, "Ошибка при создании пользователя"));
             } else {
-                return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректные данные о пользователе"));
+                return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректные данные о пользователе"));
             }
         } else {
             if (!humanService.checkUser(addRequest.getUserId())) {
                 userId = addRequest.getUserId();
             } else {
-                return ResponseEntity.status(406).body(new ResultMessage(0,"пользователя не существует"));
+                return ResponseEntity.badRequest().body(new ResultMessage(0,"пользователя не существует"));
             }
         }
         if (addRequest.getProducts() == null || addRequest.getProducts().size() == 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Необходимо указать товары"));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Необходимо указать товары"));
         }
         ResultMessage resultMessage = orderService.addOrder(humanService.getUser(userId), addRequest.getProducts());
         if (resultMessage.getId() < 1) {
-            return ResponseEntity.status(406).body(resultMessage);
+            return ResponseEntity.badRequest().body(resultMessage);
         }
         return ResponseEntity.ok(resultMessage);
     }
@@ -52,7 +52,7 @@ public class OrderController {
     public ResponseEntity<ResultMessage> setReceiveType (@RequestBody SetReceiveTypeRequest receiveTypeRequest){
         if (receiveTypeRequest.getType().equals("Самовывоз") || (receiveTypeRequest.getType().equals("Доставка") && receiveTypeRequest.getAddress() != null)){
             if (orderService.checkOrder(receiveTypeRequest.getId())) {
-                return ResponseEntity.status(406).body(new ResultMessage(0,"Заказ не найден."));
+                return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
             }
             ResultMessage resultMessage = orderService.setReceiveType(receiveTypeRequest.getId(), receiveTypeRequest.getType());
             if (resultMessage.getId() > 0) {
@@ -63,11 +63,11 @@ public class OrderController {
                 }
                 return ResponseEntity.ok(resultMessage);
             } else {
-                return ResponseEntity.status(406).body(resultMessage);
+                return ResponseEntity.badRequest().body(resultMessage);
             }
         }
         else{
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный способ получения."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный способ получения."));
         }
     }
 
@@ -75,30 +75,30 @@ public class OrderController {
     public ResponseEntity<ResultMessage> setPaymentType (@RequestBody SetPaymentTypeRequest paymentTypeRequest){
         if (paymentTypeRequest.getType().equals("Онлайн") || paymentTypeRequest.getType().equals("При получении")){
             if (orderService.checkOrder(paymentTypeRequest.getId())) {
-                return ResponseEntity.status(406).body(new ResultMessage(0,"Заказ не найден."));
+                return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
             }
             ResultMessage resultMessage = orderService.setPaymentType(paymentTypeRequest.getId(), paymentTypeRequest.getType());
             if (resultMessage.getId() > 0) {
                 return ResponseEntity.ok(resultMessage);
             } else {
-                return ResponseEntity.status(406).body(resultMessage);
+                return ResponseEntity.badRequest().body(resultMessage);
             }
         } else{
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный способ оплаты."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный способ оплаты."));
         }
     }
 
     @GetMapping("/pay")
     public ResponseEntity<ResultMessage> pay(@RequestParam Long id) {
         if (id <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный номер заказа."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
         if (orderService.checkOrder(id)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Заказ не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
         ResultMessage resultMessage = orderService.payOnline(id);
         if (resultMessage.getId() == 0) {
-            return ResponseEntity.status(406).body(resultMessage);
+            return ResponseEntity.badRequest().body(resultMessage);
         } else {
             return ResponseEntity.ok(resultMessage);
         }
@@ -107,38 +107,38 @@ public class OrderController {
     @GetMapping("/work")
     public ResponseEntity<ResultMessage> work(@RequestParam Long id, @RequestParam Long user) {
         if (id <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный номер заказа."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
         if (user <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный пользователь."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
         }
         if (humanService.checkWorker(user)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Работник не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Работник не найден."));
         }
         if (orderService.checkOrder(id)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Заказ не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
         ResultMessage resultMessage = orderService.work(id, humanService.getUser(user));
         if (resultMessage.getId() > 0) {
             return ResponseEntity.ok(resultMessage);
         } else {
-            return ResponseEntity.status(406).body(resultMessage);
+            return ResponseEntity.badRequest().body(resultMessage);
         }
     }
 
     @GetMapping("/done")
     public ResponseEntity<ResultMessage> done(@RequestParam Long id, @RequestParam Long user) {
         if (id <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный номер заказа."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
         if (user <= 0) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Некорректный пользователь."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
         }
         if (humanService.checkWorker(user)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Работник не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Работник не найден."));
         }
         if (orderService.checkOrder(id)) {
-            return ResponseEntity.status(406).body(new ResultMessage(0,"Заказ не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
         ResultMessage resultMessage = orderService.done(id, humanService.getUser(user));
         if (resultMessage.getId() > 0) {
@@ -150,7 +150,7 @@ public class OrderController {
             }
             return ResponseEntity.ok(resultMessage);
         } else {
-            return ResponseEntity.status(406).body(resultMessage);
+            return ResponseEntity.badRequest().body(resultMessage);
         }
     }
 }
