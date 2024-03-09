@@ -1,6 +1,8 @@
 package tuchin_emelianov.blps_lab_1.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
@@ -15,6 +17,14 @@ public class PickupService {
 
     @Autowired
     private ReceiveStatusRepository receiveStatusRepository;
+
+    public Page<Pickup> getPickups(Pageable pageable) {
+        return pickupRepository.findAll(pageable);
+    }
+
+    public Pickup getPickup(Long id) {
+        return pickupRepository.findPickupById(id);
+    }
 
     public ResultMessage giveOrder(Orders order, Human worker){
         if (!pickupRepository.existsByOrder(order)) {

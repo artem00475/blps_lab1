@@ -1,6 +1,8 @@
 package tuchin_emelianov.blps_lab_1.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
@@ -14,6 +16,14 @@ public class DeliveryService {
 
     @Autowired
     private DeliveryRepository deliveryRepository;
+
+    public Page<Delivery> getDeliveries(Pageable pageable) {
+        return deliveryRepository.findAll(pageable);
+    }
+
+    public Delivery getDelivery(Long id) {
+        return deliveryRepository.findDeliveryById(id);
+    }
 
     public ResultMessage takeOrder (Orders order, Human courier){
         if (!deliveryRepository.existsByOrder(order)) {

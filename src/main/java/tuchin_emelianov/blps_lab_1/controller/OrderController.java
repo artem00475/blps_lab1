@@ -1,13 +1,21 @@
 package tuchin_emelianov.blps_lab_1.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import tuchin_emelianov.blps_lab_1.jpa.entity.Orders;
+import tuchin_emelianov.blps_lab_1.jpa.entity.Pickup;
 import tuchin_emelianov.blps_lab_1.request.AddRequest;
 import tuchin_emelianov.blps_lab_1.request.SetPaymentTypeRequest;
 import tuchin_emelianov.blps_lab_1.request.SetReceiveTypeRequest;
+import tuchin_emelianov.blps_lab_1.request.UserRequest;
 import tuchin_emelianov.blps_lab_1.service.*;
+
+import java.util.List;
 
 @RestController
 public class OrderController {
@@ -20,7 +28,17 @@ public class OrderController {
     @Autowired
     private DeliveryService deliveryService;
 
-    @PostMapping("/add")
+    @GetMapping("/order")
+    public ResponseEntity<Page<Orders>> getOrders(@PageableDefault(sort = {"id"}, direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(orderService.getOrders(pageable));
+    }
+
+    @GetMapping("/order/{id}")
+    public ResponseEntity<Orders> getOrder(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.getOrder(id));
+    }
+
+    @PostMapping("/order")
     public ResponseEntity<ResultMessage> addOrder(@RequestBody AddRequest addRequest) {
         long userId;
         if (addRequest.getUserId() == null || addRequest.getUserId() < 1) {
@@ -48,8 +66,8 @@ public class OrderController {
         return ResponseEntity.ok(resultMessage);
     }
 
-    @PostMapping("/set_receive_type")
-    public ResponseEntity<ResultMessage> setReceiveType (@RequestBody SetReceiveTypeRequest receiveTypeRequest){
+    @PostMapping("/order/receiving")
+    public ResponseEntity<ResultMessage> setReceiveType (@RequestBody SetReceiveTypeRequest receiveTypeRequest) {
         if (receiveTypeRequest.getType().equals("Самовывоз") || (receiveTypeRequest.getType().equals("Доставка") && receiveTypeRequest.getAddress() != null)){
             if (orderService.checkOrder(receiveTypeRequest.getId())) {
                 return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
@@ -71,7 +89,7 @@ public class OrderController {
         }
     }
 
-    @PostMapping("/set_payment_type")
+    @PostMapping("/order/payment")
     public ResponseEntity<ResultMessage> setPaymentType (@RequestBody SetPaymentTypeRequest paymentTypeRequest){
         if (paymentTypeRequest.getType().equals("Онлайн") || paymentTypeRequest.getType().equals("При получении")){
             if (orderService.checkOrder(paymentTypeRequest.getId())) {
@@ -88,15 +106,15 @@ public class OrderController {
         }
     }
 
-    @GetMapping("/pay")
-    public ResponseEntity<ResultMessage> pay(@RequestParam Long id) {
-        if (id <= 0) {
+    @PutMapping("/order/payment")
+    public ResponseEntity<ResultMessage> pay(@RequestBody UserRequest userRequest) {
+        if (userRequest.getId() <= 0) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
-        if (orderService.checkOrder(id)) {
+        if (orderService.checkOrder(userRequest.getId())) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
-        ResultMessage resultMessage = orderService.payOnline(id);
+        ResultMessage resultMessage = orderService.payOnline(userRequest.getId());
         if (resultMessage.getId() == 0) {
             return ResponseEntity.badRequest().body(resultMessage);
         } else {
@@ -104,21 +122,21 @@ public class OrderController {
         }
     }
 
-    @GetMapping("/work")
-    public ResponseEntity<ResultMessage> work(@RequestParam Long id, @RequestParam Long user) {
-        if (id <= 0) {
+    @PostMapping("/processing")
+    public ResponseEntity<ResultMessage> work(@RequestBody UserRequest userRequest) {
+        if (userRequest.getId() <= 0) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
-        if (user <= 0) {
+        if (userRequest.getUser() <= 0) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
         }
-        if (humanService.checkWorker(user)) {
+        if (humanService.checkWorker(userRequest.getUser())) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Работник не найден."));
         }
-        if (orderService.checkOrder(id)) {
+        if (orderService.checkOrder(userRequest.getId())) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
-        ResultMessage resultMessage = orderService.work(id, humanService.getUser(user));
+        ResultMessage resultMessage = orderService.work(userRequest.getId(), humanService.getUser(userRequest.getUser()));
         if (resultMessage.getId() > 0) {
             return ResponseEntity.ok(resultMessage);
         } else {
@@ -126,23 +144,23 @@ public class OrderController {
         }
     }
 
-    @GetMapping("/done")
-    public ResponseEntity<ResultMessage> done(@RequestParam Long id, @RequestParam Long user) {
-        if (id <= 0) {
+    @PutMapping("/processing")
+    public ResponseEntity<ResultMessage> done(@RequestBody UserRequest userRequest) {
+        if (userRequest.getId() <= 0) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
-        if (user <= 0) {
+        if (userRequest.getUser() <= 0) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
         }
-        if (humanService.checkWorker(user)) {
+        if (humanService.checkWorker(userRequest.getUser())) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Работник не найден."));
         }
-        if (orderService.checkOrder(id)) {
+        if (orderService.checkOrder(userRequest.getId())) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
-        ResultMessage resultMessage = orderService.done(id, humanService.getUser(user));
+        ResultMessage resultMessage = orderService.done(userRequest.getId(), humanService.getUser(userRequest.getUser()));
         if (resultMessage.getId() > 0) {
-            Orders order = orderService.getOrder(id);
+            Orders order = orderService.getOrder(userRequest.getId());
             if (order.getReceiveType().getType().equals("Самовывоз")) {
                 pickupService.updateOrder(order);
             } else {

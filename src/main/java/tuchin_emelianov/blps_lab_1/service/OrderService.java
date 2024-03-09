@@ -1,6 +1,8 @@
 package tuchin_emelianov.blps_lab_1.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
@@ -44,6 +46,10 @@ public class OrderService {
         order.setOrderStatus(orderStatusRepository.findByType("Завершен"));
         order.setLastStatusDate(new Date());
         orderRepository.save(order);
+    }
+
+    public Page<Orders> getOrders(Pageable pageable) {
+        return orderRepository.findAll(pageable);
     }
 
     public ResultMessage addOrder(Human user, List<Product> products) {
