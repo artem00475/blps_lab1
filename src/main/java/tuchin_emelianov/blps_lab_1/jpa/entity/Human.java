@@ -1,8 +1,6 @@
 package tuchin_emelianov.blps_lab_1.jpa.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,7 +10,6 @@ import java.util.Date;
 * ФИО
 * Телефон
 * Почта
-* Дата регистрации
 */
 @Entity
 @Getter
@@ -29,7 +26,6 @@ public class Human {
 
     private String mail;
 
-    private Date date;
-
-    private String role;
+    @OneToOne(fetch = FetchType.LAZY)
+    private User user;
 }

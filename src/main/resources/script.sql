@@ -1,7 +1,7 @@
-insert into Human (id,fio, phone, mail, role)
-values (1,'Артём Тучин','111111111', 'a@m.ru', 'Клиент'),
-(2,'Артём Герасимов','111111111', 'a@m.ru', 'Работник'),
-(3,'Дмитрий Емельянов','111111111', 'a@m.ru', 'Курьер');
+insert into Human (id,fio, phone, mail, user_id)
+values (1,'Артём Тучин','111111111', 'a@m.ru',1),
+(2,'Артём Герасимов','111111111', 'a@m.ru', 2),
+(3,'Дмитрий Емельянов','111111111', 'a@m.ru', 3);
 
 insert into order_Status (id,type)
 values

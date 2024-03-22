@@ -13,6 +13,9 @@ public class AddRequest {
 
     private String fio;
 
+    private String username;
+    private String password;
+
     private String phone;
 
     private String mail;

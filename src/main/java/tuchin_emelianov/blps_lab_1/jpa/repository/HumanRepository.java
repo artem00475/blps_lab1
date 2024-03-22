@@ -8,5 +8,4 @@ public interface HumanRepository extends JpaRepository<Human, Long> {
     Human findHumanByFio(String fio);
     Human findHumanByMail(String mail);
     Human findHumanByPhone(String phone);
-    boolean existsByIdAndRole(Long id, String role);
 }

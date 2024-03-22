@@ -1,4 +1,5 @@
 package tuchin_emelianov.blps_lab_1.jpa.repository;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

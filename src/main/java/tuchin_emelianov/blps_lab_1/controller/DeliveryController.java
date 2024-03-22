@@ -1,32 +1,33 @@
 package tuchin_emelianov.blps_lab_1.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import tuchin_emelianov.blps_lab_1.jpa.entity.Delivery;
-import tuchin_emelianov.blps_lab_1.jpa.entity.Orders;
-import tuchin_emelianov.blps_lab_1.jpa.entity.Pickup;
 import tuchin_emelianov.blps_lab_1.request.UserRequest;
-import tuchin_emelianov.blps_lab_1.service.DeliveryService;
-import tuchin_emelianov.blps_lab_1.service.HumanService;
-import tuchin_emelianov.blps_lab_1.service.OrderService;
-import tuchin_emelianov.blps_lab_1.service.ResultMessage;
+import tuchin_emelianov.blps_lab_1.service.*;
 
 @RestController
+@AllArgsConstructor
 public class DeliveryController {
 
-    @Autowired
+
     private HumanService humanService;
 
-    @Autowired
+
     private OrderService orderService;
 
-    @Autowired
+
     private DeliveryService deliveryService;
+
+    private UserService userService;
 
     @GetMapping("/delivery")
     public ResponseEntity<Page<Delivery>> getDeliveries(@PageableDefault(sort = {"id"}, direction = Sort.Direction.ASC) Pageable pageable) {
@@ -43,16 +44,11 @@ public class DeliveryController {
         if (userRequest.getId() <= 0) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
-        if (userRequest.getUser() <= 0) {
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
-        }
-        if (humanService.checkCourier(userRequest.getUser())) {
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Курьер не найден."));
-        }
         if (orderService.checkOrder(userRequest.getId())) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
-        ResultMessage resultMessage = deliveryService.takeOrder(orderService.getOrder(userRequest.getId()), humanService.getUser(userRequest.getUser()));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        ResultMessage resultMessage = deliveryService.takeOrder(orderService.getOrder(userRequest.getId()), humanService.getUser(userService.getUserId(auth.getName())));
         if (resultMessage.getId() > 0) {
             return ResponseEntity.ok(resultMessage);
         } else {
@@ -65,16 +61,11 @@ public class DeliveryController {
         if (userRequest.getId() <= 0) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
         }
-        if (userRequest.getUser() <= 0) {
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
-        }
-        if (humanService.checkCourier(userRequest.getUser())) {
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Курьер не найден."));
-        }
         if (orderService.checkOrder(userRequest.getId())) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
-        ResultMessage resultMessage = deliveryService.deliverOrder(orderService.getOrder(userRequest.getId()), humanService.getUser(userRequest.getUser()));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        ResultMessage resultMessage = deliveryService.deliverOrder(orderService.getOrder(userRequest.getId()), humanService.getUser(userService.getUserId(auth.getName())));
         if (resultMessage.getId() > 0) {
             return ResponseEntity.ok(resultMessage);
         } else {
@@ -98,6 +89,7 @@ public class DeliveryController {
         }
     }
 
+    @Transactional
     @PostMapping("/delivery/receiving")
     public ResponseEntity<ResultMessage> get(@RequestBody UserRequest userRequest) {
         if (userRequest.getId() <= 0) {
@@ -106,13 +98,8 @@ public class DeliveryController {
         if (orderService.checkOrder(userRequest.getId())) {
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
         }
-        if (userRequest.getUser() <= 0) {
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный пользователь."));
-        }
-        if (humanService.checkUser(userRequest.getUser())) {
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Пользователь не найден."));
-        }
-        ResultMessage resultMessage = deliveryService.getOrder(orderService.getOrder(userRequest.getId()), humanService.getUser(userRequest.getUser()));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        ResultMessage resultMessage = deliveryService.getOrder(orderService.getOrder(userRequest.getId()), humanService.getUser(userService.getUserId(auth.getName())));
         if (resultMessage.getId() == 0) {
             return ResponseEntity.badRequest().body(resultMessage);
         } else {
