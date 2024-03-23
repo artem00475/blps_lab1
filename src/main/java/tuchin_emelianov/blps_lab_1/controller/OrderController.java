@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import tuchin_emelianov.blps_lab_1.jpa.entity.Orders;
+import tuchin_emelianov.blps_lab_1.jpa.entity.Product;
 import tuchin_emelianov.blps_lab_1.request.AddRequest;
 import tuchin_emelianov.blps_lab_1.request.SetPaymentTypeRequest;
 import tuchin_emelianov.blps_lab_1.request.SetReceiveTypeRequest;
@@ -39,6 +40,16 @@ public class OrderController {
     @GetMapping("/order/{id}")
     public ResponseEntity<Orders> getOrder(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.getOrder(id));
+    }
+
+    @GetMapping("/products")
+    public ResponseEntity<Page<Product>> getProducts(@PageableDefault(sort = {"id"}, direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(orderService.getProducts(pageable));
+    }
+
+    @GetMapping("/products/{id}")
+    public ResponseEntity<Product> getProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.getProduct(id));
     }
 
     @PostMapping("/order")
@@ -79,6 +90,7 @@ public class OrderController {
                 return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
             }
             ResultMessage resultMessage = orderService.setReceiveType(receiveTypeRequest.getId(), receiveTypeRequest.getType());
+//            method();
             if (resultMessage.getId() > 0) {
                 if (receiveTypeRequest.getType().equals("Самовывоз")) {
                     pickupService.addOrder(orderService.getOrder(receiveTypeRequest.getId()));
@@ -93,6 +105,10 @@ public class OrderController {
         else{
             return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный способ получения."));
         }
+    }
+
+    public void method() {
+        throw new RuntimeException();
     }
 
     @PostMapping("/order/payment")

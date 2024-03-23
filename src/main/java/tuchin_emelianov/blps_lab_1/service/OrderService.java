@@ -52,6 +52,14 @@ public class OrderService {
         return orderRepository.findAll(pageable);
     }
 
+    public Page<tuchin_emelianov.blps_lab_1.jpa.entity.Product> getProducts(Pageable pageable) {
+        return productRepository.findAll(pageable);
+    }
+
+    public tuchin_emelianov.blps_lab_1.jpa.entity.Product getProduct(Long id) {
+        return productRepository.findProductById(id);
+    }
+
     public ResultMessage addOrder(Human user, List<Product> products) {
         Orders order = new Orders();
         order.setClient(user);
