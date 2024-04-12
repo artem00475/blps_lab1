@@ -5,6 +5,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import tuchin_emelianov.blps_lab_1.exceptions.UserAlreadyExistsException;
 import tuchin_emelianov.blps_lab_1.jpa.entity.Role;
 import tuchin_emelianov.blps_lab_1.jpa.entity.User;
 import tuchin_emelianov.blps_lab_1.jpa.repository.RoleRepository;
@@ -26,11 +27,12 @@ public class UserService implements UserDetailsService {
         return userRepository.findByUsername(username);
     }
 
-    public Long getUserId(String username) {
-        return userRepository.findByUsername(username).getId();
-    }
+    public User getUser(String username) {return userRepository.findByUsername(username);}
 
     public User createUser(String login, String password, String role) {
+        if (userRepository.existsByUsername(login)) {
+            throw new UserAlreadyExistsException("Пользователь с логином %s уже существует".formatted(login));
+        }
         User user = new User();
         user.setUsername(login);
         user.setPassword("{noop}"+password);
