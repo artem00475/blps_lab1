@@ -1,5 +1,11 @@
 package tuchin_emelianov.blps_lab_1.controller;
 
+import com.atomikos.icatch.jta.UserTransactionImp;
+import com.atomikos.jdbc.AtomikosDataSourceBean;
+import jakarta.transaction.HeuristicMixedException;
+import jakarta.transaction.HeuristicRollbackException;
+import jakarta.transaction.RollbackException;
+import jakarta.transaction.SystemException;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +37,8 @@ public class OrderController {
     private final DeliveryService deliveryService;
 
     private final UserService userService;
+    private final AtomikosDataSourceBean atomikosDataSourceBean;
+    private final UserTransactionImp utx;
 
     @GetMapping("/order")
     public ResponseEntity<Page<Orders>> getOrders(@PageableDefault(sort = {"id"}, direction = Sort.Direction.ASC) Pageable pageable) {
@@ -84,26 +92,36 @@ public class OrderController {
     }
     @Transactional
     @PostMapping("/order/receiving")
-    public ResponseEntity<ResultMessage> setReceiveType (@RequestBody SetReceiveTypeRequest receiveTypeRequest) {
-        if (receiveTypeRequest.getType().equals("Самовывоз") || (receiveTypeRequest.getType().equals("Доставка") && receiveTypeRequest.getAddress() != null)){
+    public ResponseEntity<ResultMessage> setReceiveType(@RequestBody SetReceiveTypeRequest receiveTypeRequest) throws SystemException {
+        if (receiveTypeRequest.getType().equals("Самовывоз") || (receiveTypeRequest.getType().equals("Доставка") && receiveTypeRequest.getAddress() != null)) {
             if (orderService.checkOrder(receiveTypeRequest.getId())) {
-                return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
+                return ResponseEntity.badRequest().body(new ResultMessage(0, "Заказ не найден."));
             }
-            ResultMessage resultMessage = orderService.setReceiveType(receiveTypeRequest.getId(), receiveTypeRequest.getType());
-//            method();
-            if (resultMessage.getId() > 0) {
-                if (receiveTypeRequest.getType().equals("Самовывоз")) {
-                    pickupService.addOrder(orderService.getOrder(receiveTypeRequest.getId()));
-                } else {
-                    deliveryService.addOrder(orderService.getOrder(receiveTypeRequest.getId()), receiveTypeRequest.getAddress());
+            ResultMessage resultMessage;
+            try {
+                utx.begin();
+                resultMessage = orderService.setReceiveType(receiveTypeRequest.getId(), receiveTypeRequest.getType());
+//                method();
+                if (resultMessage.getId() > 0) {
+                    if (receiveTypeRequest.getType().equals("Самовывоз")) {
+                        pickupService.addOrder(orderService.getOrder(receiveTypeRequest.getId()));
+                    } else {
+                        deliveryService.addOrder(orderService.getOrder(receiveTypeRequest.getId()), receiveTypeRequest.getAddress());
+                    }
                 }
+                utx.commit();
+            } catch (Exception e) {
+                utx.rollback();
+                e.printStackTrace();
+                return ResponseEntity.badRequest().body(new ResultMessage(0, e.getMessage()));
+            }
+            if (resultMessage.getId() > 0) {
                 return ResponseEntity.ok(resultMessage);
             } else {
                 return ResponseEntity.badRequest().body(resultMessage);
             }
-        }
-        else{
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный способ получения."));
+        } else {
+            return ResponseEntity.badRequest().body(new ResultMessage(0, "Некорректный способ получения."));
         }
     }
 
@@ -162,22 +180,30 @@ public class OrderController {
     }
 
     @PutMapping("/processing")
-    public ResponseEntity<ResultMessage> done(@RequestBody UserRequest userRequest) {
-        if (userRequest.getId() <= 0) {
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Некорректный номер заказа."));
-        }
+    public ResponseEntity<ResultMessage> done(@RequestBody UserRequest userRequest) throws SystemException {
         if (orderService.checkOrder(userRequest.getId())) {
-            return ResponseEntity.badRequest().body(new ResultMessage(0,"Заказ не найден."));
+            return ResponseEntity.badRequest().body(new ResultMessage(0, "Заказ не найден."));
         }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        ResultMessage resultMessage = orderService.done(userRequest.getId(), humanService.getUser(userService.getUserId(auth.getName())));
-        if (resultMessage.getId() > 0) {
-            Orders order = orderService.getOrder(userRequest.getId());
-            if (order.getReceiveType().getType().equals("Самовывоз")) {
-                pickupService.updateOrder(order);
-            } else {
-                deliveryService.updateOrder(order);
+        ResultMessage resultMessage;
+        try {
+            utx.begin();
+            resultMessage = orderService.done(userRequest.getId(), humanService.getUser(userService.getUserId(auth.getName())));
+            if (resultMessage.getId() > 0) {
+                Orders order = orderService.getOrder(userRequest.getId());
+                if (order.getReceiveType().getType().equals("Самовывоз")) {
+                    pickupService.updateOrder(order);
+                } else {
+                    deliveryService.updateOrder(order);
+                }
             }
+            utx.commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            utx.rollback();
+            return ResponseEntity.badRequest().body(new ResultMessage(0, e.getMessage()));
+        }
+        if (resultMessage.getId() > 0) {
             return ResponseEntity.ok(resultMessage);
         } else {
             return ResponseEntity.badRequest().body(resultMessage);
