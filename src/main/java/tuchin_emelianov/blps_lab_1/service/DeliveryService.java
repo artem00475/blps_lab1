@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import tuchin_emelianov.blps_lab_1.dto.DeliveryDTO;
+import tuchin_emelianov.blps_lab_1.exceptions.BlankFieldException;
 import tuchin_emelianov.blps_lab_1.exceptions.EntityNotFoundException;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
@@ -108,6 +109,8 @@ public class DeliveryService {
     }
 
     public void addOrder(Orders order, String address) {
+        if (address == null || address.trim().isEmpty())
+            throw new BlankFieldException("При доставке необходимо указать адрес");
         Delivery delivery = new Delivery();
         delivery.setOrder(order);
         delivery.setAddress(address);

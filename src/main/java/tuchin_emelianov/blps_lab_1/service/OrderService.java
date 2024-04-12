@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import tuchin_emelianov.blps_lab_1.dto.OrderDTO;
+import tuchin_emelianov.blps_lab_1.exceptions.ElementNotFoundException;
 import tuchin_emelianov.blps_lab_1.exceptions.EntityNotFoundException;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
@@ -30,8 +31,9 @@ public class OrderService {
     private ModelMapper modelMapper;
     private UserTransactionImp userTransactionImp;
 
-    public boolean checkOrder(Long id) {
-        return !orderRepository.existsById(id);
+    public void checkOrder(Long id) {
+        if (!orderRepository.existsById(id))
+            throw new ElementNotFoundException("Заказ с id=%s не найден".formatted(id));
     }
 
     public OrderDTO getOrderDTO(Long id) {
