@@ -1,4 +1,4 @@
-package tuchin_emelianov.blps_lab_1.security;
+package tuchin_emelianov.blps_lab_1.config;
 
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -14,7 +14,7 @@ import tuchin_emelianov.blps_lab_1.service.UserService;
 @EnableWebSecurity
 @AllArgsConstructor
 @EnableMethodSecurity
-public class SecurityConfig {
+public class SecurityConfiguration {
 
     private final UserService userService;
 
