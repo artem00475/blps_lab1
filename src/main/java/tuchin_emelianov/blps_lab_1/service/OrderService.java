@@ -1,5 +1,7 @@
 package tuchin_emelianov.blps_lab_1.service;
 
+import com.atomikos.icatch.jta.UserTransactionImp;
+import jakarta.transaction.SystemException;
 import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
@@ -20,18 +22,13 @@ import java.util.List;
 public class OrderService {
 
     private OrderRepository orderRepository;
-
     private ProductRepository productRepository;
-
     private ProductInOrderRepository productInOrderRepository;
-
     private OrderStatusRepository orderStatusRepository;
-
     private ReceiveTypeRepository receiveTypeRepository;
-
     private PaymentTypeRepository paymentTypeRepository;
-
     private ModelMapper modelMapper;
+    private UserTransactionImp userTransactionImp;
 
     public boolean checkOrder(Long id) {
         return !orderRepository.existsById(id);
@@ -72,7 +69,7 @@ public class OrderService {
         return productRepository.findProductById(id);
     }
 
-    public ResultMessage addOrder(Human user, List<Product> products) {
+    public ResultMessage addOrder(Human user, List<Product> products) throws SystemException {
         Orders order = new Orders();
         order.setClient(user);
         order.setDate(new Date());
@@ -99,18 +96,23 @@ public class OrderService {
         if (!message.isEmpty()) {
             return new ResultMessage(0, message.toString());
         }
+        try {
+            userTransactionImp.begin();
+            order = orderRepository.save(order);
 
-        order = orderRepository.save(order);
-
-        for (Product value : products) {
-            tuchin_emelianov.blps_lab_1.jpa.entity.Product product = productRepository.findProductByName(value.getName());
-            product.setCount(product.getCount() - value.getCount());
-            product = productRepository.save(product);
-            ProductInOrder productInOrder = new ProductInOrder();
-            productInOrder.setProduct(product);
-            productInOrder.setOrders(order);
-            productInOrder.setCount(value.getCount());
-            productInOrderRepository.save(productInOrder);
+            for (Product value : products) {
+                tuchin_emelianov.blps_lab_1.jpa.entity.Product product = productRepository.findProductByName(value.getName());
+                product.setCount(product.getCount() - value.getCount());
+                product = productRepository.save(product);
+                ProductInOrder productInOrder = new ProductInOrder();
+                productInOrder.setProduct(product);
+                productInOrder.setOrders(order);
+                productInOrder.setCount(value.getCount());
+                productInOrderRepository.save(productInOrder);
+            }
+            userTransactionImp.commit();
+        } catch (Exception e) {
+            userTransactionImp.rollback();
         }
 
         return new ResultMessage(order.getId(), "Заказ успешно создан! Вам необходимо выбрать способ получения.");

@@ -15,8 +15,8 @@ public interface DeliveryRepository extends JpaRepository<Delivery,Long>{
     Delivery findAllByAddress (String address);
     Delivery findDeliveryByOrder (Orders order);
     boolean existsByOrder(Orders order);
-    @Query("select d from Delivery d join fetch d.order o join fetch d.courier c join fetch d.status s join fetch o.client cl join fetch o.orderStatus st  join fetch o.paymentType p join fetch o.receiveType r join fetch o.worker w")
+    @Query("select d from Delivery d left join d.order o left join d.courier c left join d.status s left join o.client cl left join o.orderStatus st  left join o.paymentType p left join o.receiveType r left join o.worker w")
     Page<Delivery> findAll(Pageable pageable);
-    @Query("select d from Delivery d join fetch d.order o join fetch d.courier c join fetch d.status s join fetch o.client cl join fetch o.orderStatus st  join fetch o.paymentType p join fetch o.receiveType r join fetch o.worker w where d.id = ?1")
+    @Query("select d from Delivery d left join d.order o left join d.courier c left join d.status s left join o.client cl left join o.orderStatus st  left join o.paymentType p left join o.receiveType r left join o.worker w where d.id = ?1")
     Delivery findDeliveryById(Long id);
 }

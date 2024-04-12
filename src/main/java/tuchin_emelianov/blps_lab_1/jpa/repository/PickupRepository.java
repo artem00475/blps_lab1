@@ -14,8 +14,8 @@ public interface PickupRepository extends JpaRepository<Pickup,Long> {
    Pickup findAllByReceiveStatus (ReceiveStatus status);
    Pickup findAllByDate (Date date);
    boolean existsByOrder(Orders order);
-   @Query("select p from Pickup p join fetch p.worker w join fetch p.order o join fetch p.receiveStatus s join fetch o.worker w1 join fetch o.client c join fetch o.orderStatus st join fetch o.paymentType pt join fetch o.receiveType rt")
+   @Query("select p from Pickup p left join p.worker w left join p.order o left join p.receiveStatus s left join o.worker w1 left join o.client c left join o.orderStatus st left join o.paymentType pt left join o.receiveType rt")
    Page<Pickup> findAll(Pageable pageable);
-   @Query("select p from Pickup p join fetch p.worker w join fetch p.order o join fetch p.receiveStatus s join fetch o.worker w1 join fetch o.client c join fetch o.orderStatus st join fetch o.paymentType pt join fetch o.receiveType rt where p.id = ?1")
+   @Query("select p from Pickup p left join p.worker w left join p.order o left join p.receiveStatus s left join o.worker w1 left join o.client c left join o.orderStatus st left join o.paymentType pt left join o.receiveType rt where p.id = ?1")
    Pickup findPickupById(Long id);
 }
