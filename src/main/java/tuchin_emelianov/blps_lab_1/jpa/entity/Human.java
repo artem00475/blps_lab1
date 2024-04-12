@@ -26,6 +26,6 @@ public class Human {
 
     private String mail;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     private User user;
 }

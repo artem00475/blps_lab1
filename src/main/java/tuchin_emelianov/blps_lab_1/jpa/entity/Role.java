@@ -1,17 +1,15 @@
 package tuchin_emelianov.blps_lab_1.jpa.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.util.Set;
 
 @Entity
-@Getter
-@Setter
+@Data
+@ToString(exclude = {"users"})
+@EqualsAndHashCode(exclude = {"users"})
 @NoArgsConstructor
 @AllArgsConstructor
 public class Role implements GrantedAuthority {
@@ -21,7 +19,7 @@ public class Role implements GrantedAuthority {
 
     private String name;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY, mappedBy = "roles")
     private Set<User> users;
 
     @Override

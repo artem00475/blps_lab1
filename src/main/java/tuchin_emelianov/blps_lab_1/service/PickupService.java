@@ -1,22 +1,37 @@
 package tuchin_emelianov.blps_lab_1.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import tuchin_emelianov.blps_lab_1.dto.PickupDTO;
+import tuchin_emelianov.blps_lab_1.exceptions.EntityNotFoundException;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
 
 import java.util.Date;
 
 @Service
+@AllArgsConstructor
 public class PickupService {
 
-    @Autowired
     private PickupRepository pickupRepository;
 
-    @Autowired
     private ReceiveStatusRepository receiveStatusRepository;
+
+    private ModelMapper modelMapper;
+
+    public PickupDTO getPickupDTO(Long id) {
+        Pickup pickup = pickupRepository.findPickupById(id);
+        if (pickup == null) throw new EntityNotFoundException("Самовывоз с id=%s не найден".formatted(id));
+        return modelMapper.map(pickup, PickupDTO.class);
+    }
+
+    public Page<PickupDTO> getPickupsDTO(Pageable pageable) {
+        Page<Pickup> pickupPage = pickupRepository.findAll(pageable);
+        return pickupPage.map(pickup -> modelMapper.map(pickup, PickupDTO.class));
+    }
 
     public Page<Pickup> getPickups(Pageable pageable) {
         return pickupRepository.findAll(pageable);

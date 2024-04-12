@@ -1,21 +1,36 @@
 package tuchin_emelianov.blps_lab_1.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import tuchin_emelianov.blps_lab_1.dto.DeliveryDTO;
+import tuchin_emelianov.blps_lab_1.exceptions.EntityNotFoundException;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
 import java.util.Date;
 
 @Service
+@AllArgsConstructor
 public class DeliveryService {
 
-    @Autowired
     private DeliveryStatusRepository deliveryStatusRepository;
 
-    @Autowired
     private DeliveryRepository deliveryRepository;
+
+    private ModelMapper modelMapper;
+
+    public DeliveryDTO getDeliveryDTO(Long id) {
+        Delivery delivery = deliveryRepository.findDeliveryById(id);
+        if (delivery == null) throw new EntityNotFoundException("Доставка с id=%s не найдена".formatted(id));
+        return modelMapper.map(delivery, DeliveryDTO.class);
+    }
+
+    public Page<DeliveryDTO> getDeliveriesDTO(Pageable pageable) {
+        Page<Delivery> deliveryPage = deliveryRepository.findAll(pageable);
+        return deliveryPage.map(delivery -> modelMapper.map(delivery, DeliveryDTO.class));
+    }
 
     public Page<Delivery> getDeliveries(Pageable pageable) {
         return deliveryRepository.findAll(pageable);

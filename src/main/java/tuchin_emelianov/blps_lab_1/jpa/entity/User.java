@@ -1,10 +1,7 @@
 package tuchin_emelianov.blps_lab_1.jpa.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -27,7 +24,13 @@ public class User implements UserDetails {
 
     private String password;
 
+    @ToString.Exclude
     @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "users_roles",
+            joinColumns = @JoinColumn(name = "users_id", nullable = false),
+            inverseJoinColumns = @JoinColumn(name = "roles_id", nullable = false)
+    )
     private Set<Role> roles;
 
     @Override

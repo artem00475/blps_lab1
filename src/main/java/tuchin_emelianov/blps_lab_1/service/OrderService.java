@@ -1,9 +1,12 @@
 package tuchin_emelianov.blps_lab_1.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import tuchin_emelianov.blps_lab_1.dto.OrderDTO;
+import tuchin_emelianov.blps_lab_1.exceptions.EntityNotFoundException;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
 import tuchin_emelianov.blps_lab_1.request.Product;
@@ -13,28 +16,36 @@ import java.util.Date;
 import java.util.List;
 
 @Service
+@AllArgsConstructor
 public class OrderService {
 
-    @Autowired
     private OrderRepository orderRepository;
 
-    @Autowired
     private ProductRepository productRepository;
 
-    @Autowired
     private ProductInOrderRepository productInOrderRepository;
 
-    @Autowired
     private OrderStatusRepository orderStatusRepository;
 
-    @Autowired
     private ReceiveTypeRepository receiveTypeRepository;
 
-    @Autowired
     private PaymentTypeRepository paymentTypeRepository;
+
+    private ModelMapper modelMapper;
 
     public boolean checkOrder(Long id) {
         return !orderRepository.existsById(id);
+    }
+
+    public OrderDTO getOrderDTO(Long id) {
+        Orders order = orderRepository.findOrderById(id);
+        if (order == null) throw new EntityNotFoundException("Заказ с id=%s не найден".formatted(id));
+        return modelMapper.map(order, OrderDTO.class);
+    }
+
+    public Page<OrderDTO> getOrdersDTO(Pageable pageable) {
+        Page<Orders> ordersPage = orderRepository.findAll(pageable);
+        return ordersPage.map(orders -> modelMapper.map(orders, OrderDTO.class));
     }
 
     public Orders getOrder(Long id) {
@@ -51,6 +62,7 @@ public class OrderService {
     public Page<Orders> getOrders(Pageable pageable) {
         return orderRepository.findAll(pageable);
     }
+
 
     public Page<tuchin_emelianov.blps_lab_1.jpa.entity.Product> getProducts(Pageable pageable) {
         return productRepository.findAll(pageable);
