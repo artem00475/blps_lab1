@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,9 @@ import tuchin_emelianov.blps_lab_1.jpa.entity.Pickup;
 import tuchin_emelianov.blps_lab_1.request.UserRequest;
 import tuchin_emelianov.blps_lab_1.service.*;
 
+import java.security.Principal;
+
+@PreAuthorize("hasAuthority('Работник')")
 @RestController
 @AllArgsConstructor
 public class PickupController {
@@ -55,7 +59,7 @@ public class PickupController {
         }
     }
 
-    @Transactional
+    @PreAuthorize("hasAuthority('Клиент')")
     @PutMapping("/pickup")
     public ResponseEntity<ResultMessage> get(@RequestBody UserRequest userRequest) {
         if (userRequest.getId() <= 0) {

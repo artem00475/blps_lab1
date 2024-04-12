@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,9 @@ import tuchin_emelianov.blps_lab_1.request.SetReceiveTypeRequest;
 import tuchin_emelianov.blps_lab_1.request.UserRequest;
 import tuchin_emelianov.blps_lab_1.service.*;
 
+import java.security.Principal;
+
+@PreAuthorize("hasAuthority('Клиент')")
 @RestController
 @AllArgsConstructor
 public class OrderController {
@@ -40,21 +44,25 @@ public class OrderController {
     private final AtomikosDataSourceBean atomikosDataSourceBean;
     private final UserTransactionImp utx;
 
+    @PreAuthorize("hasAnyAuthority('Работник', 'Клиент')")
     @GetMapping("/order")
     public ResponseEntity<Page<Orders>> getOrders(@PageableDefault(sort = {"id"}, direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(orderService.getOrders(pageable));
     }
 
+    @PreAuthorize("hasAnyAuthority('Работник', 'Клиент')")
     @GetMapping("/order/{id}")
     public ResponseEntity<Orders> getOrder(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.getOrder(id));
     }
 
+    @PreAuthorize("hasAnyAuthority('Работник', 'Клиент')")
     @GetMapping("/products")
     public ResponseEntity<Page<Product>> getProducts(@PageableDefault(sort = {"id"}, direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(orderService.getProducts(pageable));
     }
 
+    @PreAuthorize("hasAnyAuthority('Работник', 'Клиент')")
     @GetMapping("/products/{id}")
     public ResponseEntity<Product> getProduct(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.getProduct(id));
@@ -162,6 +170,7 @@ public class OrderController {
         }
     }
 
+    @PreAuthorize("hasAuthority('Работник')")
     @PostMapping("/processing")
     public ResponseEntity<ResultMessage> work(@RequestBody UserRequest userRequest) {
         if (userRequest.getId() <= 0) {
@@ -179,6 +188,7 @@ public class OrderController {
         }
     }
 
+    @PreAuthorize("hasAuthority('Работник')")
     @PutMapping("/processing")
     public ResponseEntity<ResultMessage> done(@RequestBody UserRequest userRequest) throws SystemException {
         if (orderService.checkOrder(userRequest.getId())) {

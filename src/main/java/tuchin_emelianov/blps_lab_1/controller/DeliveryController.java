@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,9 @@ import tuchin_emelianov.blps_lab_1.jpa.entity.Delivery;
 import tuchin_emelianov.blps_lab_1.request.UserRequest;
 import tuchin_emelianov.blps_lab_1.service.*;
 
+import java.security.Principal;
+
+@PreAuthorize("hasAuthority('Курьер')")
 @RestController
 @AllArgsConstructor
 public class DeliveryController {
@@ -73,6 +77,7 @@ public class DeliveryController {
         }
     }
 
+    @PreAuthorize("hasAuthority('Клиент')")
     @PostMapping("/delivery/payment")
     public ResponseEntity<ResultMessage> pay(@RequestBody UserRequest userRequest) {
         if (userRequest.getId() <= 0) {
@@ -89,7 +94,7 @@ public class DeliveryController {
         }
     }
 
-    @Transactional
+    @PreAuthorize("hasAuthority('Клиент')")
     @PostMapping("/delivery/receiving")
     public ResponseEntity<ResultMessage> get(@RequestBody UserRequest userRequest) {
         if (userRequest.getId() <= 0) {
