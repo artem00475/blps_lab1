@@ -4,6 +4,7 @@ import com.atomikos.icatch.jta.UserTransactionImp;
 import jakarta.transaction.SystemException;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import tuchin_emelianov.blps_lab_1.exceptions.UserAlreadyExistsException;
 import tuchin_emelianov.blps_lab_1.jpa.entity.Human;
 import tuchin_emelianov.blps_lab_1.jpa.entity.User;
 import tuchin_emelianov.blps_lab_1.jpa.repository.HumanRepository;
@@ -26,10 +27,12 @@ public class HumanService {
     }
 
     public Human addUser(String fio, String mail, String phone, String username, String password, String role) throws SystemException {
+        userService.existsUser(username);
         Human human = new Human();
         human.setFio(fio);
         human.setMail(mail);
         human.setPhone(phone);
+
         try {
             utx.begin();
             human.setUser(userService.createUser(username, password, role));

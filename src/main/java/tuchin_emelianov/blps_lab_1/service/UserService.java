@@ -29,10 +29,13 @@ public class UserService implements UserDetailsService {
 
     public User getUser(String username) {return userRepository.findByUsername(username);}
 
-    public User createUser(String login, String password, String role) {
-        if (userRepository.existsByUsername(login)) {
-            throw new UserAlreadyExistsException("Пользователь с логином %s уже существует".formatted(login));
+    public void existsUser(String username) {
+        if (userRepository.existsByUsername(username)) {
+            throw new UserAlreadyExistsException("Пользователь с логином %s уже существует".formatted(username));
         }
+    }
+
+    public User createUser(String login, String password, String role) {
         User user = new User();
         user.setUsername(login);
         user.setPassword("{noop}"+password);
