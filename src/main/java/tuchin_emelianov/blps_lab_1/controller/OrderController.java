@@ -1,7 +1,5 @@
 package tuchin_emelianov.blps_lab_1.controller;
 
-import com.atomikos.icatch.jta.UserTransactionImp;
-import jakarta.transaction.SystemException;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -14,7 +12,6 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import tuchin_emelianov.blps_lab_1.dto.OrderDTO;
 import tuchin_emelianov.blps_lab_1.exceptions.BlankFieldException;
-import tuchin_emelianov.blps_lab_1.jpa.entity.Orders;
 import tuchin_emelianov.blps_lab_1.jpa.entity.Product;
 import tuchin_emelianov.blps_lab_1.request.AddRequest;
 import tuchin_emelianov.blps_lab_1.request.SetPaymentTypeRequest;
@@ -31,10 +28,7 @@ public class OrderController {
 
     private final HumanService humanService;
     private final OrderService orderService;
-    private final PickupService pickupService;
-    private final DeliveryService deliveryService;
     private final UserService userService;
-    private final UserTransactionImp utx;
 
     @PreAuthorize("hasAnyAuthority('Работник', 'Клиент')")
     @GetMapping("/order")
@@ -61,7 +55,7 @@ public class OrderController {
     }
 
     @PostMapping("/order")
-    public ResponseEntity<ResultMessage> addOrder(@RequestBody @Valid AddRequest addRequest, BindingResult bindingResult, Principal principal) throws SystemException {
+    public ResponseEntity<ResultMessage> addOrder(@RequestBody @Valid AddRequest addRequest, BindingResult bindingResult, Principal principal) {
         if (bindingResult.hasErrors()) {
             throw new BlankFieldException("Необходимо заполнить список товаров");
         }
@@ -73,25 +67,14 @@ public class OrderController {
     }
 
     @PostMapping("/order/receiving")
-    public ResponseEntity<ResultMessage> setReceiveType(@RequestBody @Valid SetReceiveTypeRequest receiveTypeRequest, BindingResult bindingResult) throws SystemException {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+    public ResponseEntity<ResultMessage> setReceiveType(@RequestBody @Valid SetReceiveTypeRequest receiveTypeRequest, BindingResult bindingResult) {
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+
         orderService.checkOrder(receiveTypeRequest.getId());
-        ResultMessage resultMessage;
-        try {
-            utx.begin();
-            resultMessage = orderService.setReceiveType(receiveTypeRequest.getId(), receiveTypeRequest.getType());
-            if (resultMessage.getId() > 0) {
-                if (receiveTypeRequest.getType().equals("Самовывоз")) {
-                    pickupService.addOrder(orderService.getOrder(receiveTypeRequest.getId()));
-                } else {
-                    deliveryService.addOrder(orderService.getOrder(receiveTypeRequest.getId()), receiveTypeRequest.getAddress());
-                }
-            }
-            utx.commit();
-        } catch (Exception e) {
-            utx.rollback();
-            return ResponseEntity.badRequest().body(new ResultMessage(0, e.getMessage()));
-        }
+
+        ResultMessage resultMessage = orderService.setReceiveType(receiveTypeRequest.getId(), receiveTypeRequest.getType(), receiveTypeRequest.getAddress());
+
         if (resultMessage.getId() > 0) {
             return ResponseEntity.ok(resultMessage);
         } else {
@@ -99,13 +82,14 @@ public class OrderController {
         }
     }
 
-    public void method() {
-        throw new RuntimeException();
-    }
+//    public void method() {
+//        throw new RuntimeException();
+//    }
 
     @PostMapping("/order/payment")
     public ResponseEntity<ResultMessage> setPaymentType(@RequestBody @Valid SetPaymentTypeRequest paymentTypeRequest, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(paymentTypeRequest.getId());
         ResultMessage resultMessage = orderService.setPaymentType(paymentTypeRequest.getId(), paymentTypeRequest.getType());
         if (resultMessage.getId() > 0) {
@@ -117,7 +101,8 @@ public class OrderController {
 
     @PutMapping("/order/payment")
     public ResponseEntity<ResultMessage> pay(@RequestBody @Valid UserRequest userRequest, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(userRequest.getId());
         ResultMessage resultMessage = orderService.payOnline(userRequest.getId());
         if (resultMessage.getId() == 0) {
@@ -130,7 +115,8 @@ public class OrderController {
     @PreAuthorize("hasAuthority('Работник')")
     @PostMapping("/processing")
     public ResponseEntity<ResultMessage> work(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(userRequest.getId());
         ResultMessage resultMessage = orderService.work(userRequest.getId(), humanService.getHumanByUser(userService.getUser(principal.getName())));
         if (resultMessage.getId() > 0) {
@@ -142,27 +128,14 @@ public class OrderController {
 
     @PreAuthorize("hasAuthority('Работник')")
     @PutMapping("/processing")
-    public ResponseEntity<ResultMessage> done(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) throws SystemException {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+    public ResponseEntity<ResultMessage> done(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) {
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+
         orderService.checkOrder(userRequest.getId());
-        ResultMessage resultMessage;
-        try {
-            utx.begin();
-            resultMessage = orderService.done(userRequest.getId(), humanService.getHumanByUser(userService.getUser(principal.getName())));
-            if (resultMessage.getId() > 0) {
-                Orders order = orderService.getOrder(userRequest.getId());
-                if (order.getReceiveType().getType().equals("Самовывоз")) {
-                    pickupService.updateOrder(order);
-                } else {
-                    deliveryService.updateOrder(order);
-                }
-            }
-            utx.commit();
-        } catch (Exception e) {
-            e.printStackTrace();
-            utx.rollback();
-            return ResponseEntity.badRequest().body(new ResultMessage(0, e.getMessage()));
-        }
+
+        ResultMessage resultMessage = orderService.done(userRequest.getId(), humanService.getHumanByUser(userService.getUser(principal.getName())));
+
         if (resultMessage.getId() > 0) {
             return ResponseEntity.ok(resultMessage);
         } else {

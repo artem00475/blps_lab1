@@ -1,7 +1,5 @@
 package tuchin_emelianov.blps_lab_1.controller;
 
-import com.atomikos.icatch.jta.UserTransactionImp;
-import jakarta.transaction.SystemException;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,7 +26,6 @@ public class DeliveryController {
     private OrderService orderService;
     private DeliveryService deliveryService;
     private UserService userService;
-    private UserTransactionImp utx;
 
     @GetMapping("/delivery")
     public ResponseEntity<Page<DeliveryDTO>> getDeliveries(@PageableDefault(sort = {"id"}, direction = Sort.Direction.ASC) Pageable pageable) {
@@ -42,7 +39,8 @@ public class DeliveryController {
 
     @PostMapping("/delivery")
     public ResponseEntity<ResultMessage> work(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(userRequest.getId());
         ResultMessage resultMessage = deliveryService.takeOrder(orderService.getOrder(userRequest.getId()), humanService.getHumanByUser(userService.getUser(principal.getName())));
         if (resultMessage.getId() > 0) {
@@ -54,7 +52,8 @@ public class DeliveryController {
 
     @PutMapping("/delivery")
     public ResponseEntity<ResultMessage> done(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(userRequest.getId());
         ResultMessage resultMessage = deliveryService.deliverOrder(orderService.getOrder(userRequest.getId()), humanService.getHumanByUser(userService.getUser(principal.getName())));
         if (resultMessage.getId() > 0) {
@@ -67,7 +66,8 @@ public class DeliveryController {
     @PreAuthorize("hasAuthority('Клиент')")
     @PostMapping("/delivery/payment")
     public ResponseEntity<ResultMessage> pay(@RequestBody @Valid UserRequest userRequest, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(userRequest.getId());
         ResultMessage resultMessage = orderService.payDelivery(orderService.getOrder(userRequest.getId()));
         if (resultMessage.getId() == 0) {
@@ -79,24 +79,15 @@ public class DeliveryController {
 
     @PreAuthorize("hasAuthority('Клиент')")
     @PostMapping("/delivery/receiving")
-    public ResponseEntity<ResultMessage> get(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) throws SystemException {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+    public ResponseEntity<ResultMessage> get(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) {
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(userRequest.getId());
-        try {
-            utx.begin();
-            ResultMessage resultMessage = deliveryService.getOrder(orderService.getOrder(userRequest.getId()), humanService.getHumanByUser(userService.getUser(principal.getName())));
-            if (resultMessage.getId() != 0) {
-                orderService.closeOrder(userRequest.getId());
-            }
-            utx.commit();
-            if (resultMessage.getId() == 0) {
-                return ResponseEntity.badRequest().body(resultMessage);
-            } else {
-                return ResponseEntity.ok(resultMessage);
-            }
-        } catch (Exception e) {
-            utx.rollback();
-            return ResponseEntity.badRequest().body(new ResultMessage(0, e.getMessage()));
+        ResultMessage resultMessage = deliveryService.getOrder(orderService.getOrder(userRequest.getId()), humanService.getHumanByUser(userService.getUser(principal.getName())));
+        if (resultMessage.getId() == 0) {
+            return ResponseEntity.badRequest().body(resultMessage);
+        } else {
+            return ResponseEntity.ok(resultMessage);
         }
     }
 }

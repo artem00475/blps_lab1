@@ -1,7 +1,5 @@
 package tuchin_emelianov.blps_lab_1.controller;
 
-import com.atomikos.icatch.jta.UserTransactionImp;
-import jakarta.transaction.SystemException;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,7 +26,6 @@ public class PickupController {
     private OrderService orderService;
     private PickupService pickupService;
     private UserService userService;
-    private UserTransactionImp utx;
 
     @GetMapping("/pickup")
     public ResponseEntity<Page<PickupDTO>> getPickups(@PageableDefault(sort = {"id"}, direction = Sort.Direction.ASC) Pageable pageable) {
@@ -42,7 +39,8 @@ public class PickupController {
 
     @PostMapping("/pickup")
     public ResponseEntity<ResultMessage> work(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(userRequest.getId());
         ResultMessage resultMessage = pickupService.giveOrder(orderService.getOrder(userRequest.getId()), humanService.getHumanByUser(userService.getUser(principal.getName())));
         if (resultMessage.getId() > 0) {
@@ -54,24 +52,15 @@ public class PickupController {
 
     @PreAuthorize("hasAuthority('Клиент')")
     @PutMapping("/pickup")
-    public ResponseEntity<ResultMessage> get(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) throws SystemException {
-        if (bindingResult.hasErrors()) throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
+    public ResponseEntity<ResultMessage> get(@RequestBody @Valid UserRequest userRequest, Principal principal, BindingResult bindingResult) {
+        if (bindingResult.hasErrors())
+            throw new BlankFieldException(bindingResult.getAllErrors().get(0).getDefaultMessage());
         orderService.checkOrder(userRequest.getId());
-        try {
-            utx.begin();
-            ResultMessage resultMessage = pickupService.getOrder(orderService.getOrder(userRequest.getId()), humanService.getHumanByUser(userService.getUser(principal.getName())));
-            if (resultMessage.getId() != 0) {
-                orderService.closeOrder(userRequest.getId());
-            }
-            utx.commit();
-            if (resultMessage.getId() == 0) {
-                return ResponseEntity.badRequest().body(resultMessage);
-            } else {
-                return ResponseEntity.ok(resultMessage);
-            }
-        } catch (Exception e) {
-            utx.rollback();
-            return ResponseEntity.badRequest().body(new ResultMessage(0, e.getMessage()));
+        ResultMessage resultMessage = pickupService.getOrder(orderService.getOrder(userRequest.getId()), humanService.getHumanByUser(userService.getUser(principal.getName())));
+        if (resultMessage.getId() == 0) {
+            return ResponseEntity.badRequest().body(resultMessage);
+        } else {
+            return ResponseEntity.ok(resultMessage);
         }
     }
 }

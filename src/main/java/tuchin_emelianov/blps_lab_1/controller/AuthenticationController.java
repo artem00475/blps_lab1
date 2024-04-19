@@ -1,6 +1,5 @@
 package tuchin_emelianov.blps_lab_1.controller;
 
-import jakarta.transaction.SystemException;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -11,7 +10,6 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import tuchin_emelianov.blps_lab_1.dto.HumanDTO;
 import tuchin_emelianov.blps_lab_1.exceptions.BlankFieldException;
-import tuchin_emelianov.blps_lab_1.exceptions.UserAlreadyExistsException;
 import tuchin_emelianov.blps_lab_1.request.SignUpRequest;
 import tuchin_emelianov.blps_lab_1.service.HumanService;
 
@@ -24,7 +22,7 @@ public class AuthenticationController {
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/sign-up")
     @PreAuthorize("isAnonymous()")
-    public HumanDTO signUp(@RequestBody @Valid SignUpRequest signUpRequest, BindingResult bindingResult) throws SystemException {
+    public HumanDTO signUp(@RequestBody @Valid SignUpRequest signUpRequest, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) throw new BlankFieldException("Необходимо заполнить все поля");
         return modelMapper.map(humanService.signUp(signUpRequest), HumanDTO.class);
     }

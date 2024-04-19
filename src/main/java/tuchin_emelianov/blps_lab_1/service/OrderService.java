@@ -1,12 +1,11 @@
 package tuchin_emelianov.blps_lab_1.service;
 
-import com.atomikos.icatch.jta.UserTransactionImp;
-import jakarta.transaction.SystemException;
-import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tuchin_emelianov.blps_lab_1.dto.OrderDTO;
 import tuchin_emelianov.blps_lab_1.exceptions.ElementNotFoundException;
 import tuchin_emelianov.blps_lab_1.exceptions.EntityNotFoundException;
@@ -19,17 +18,31 @@ import java.util.Date;
 import java.util.List;
 
 @Service
-@AllArgsConstructor
 public class OrderService {
 
-    private OrderRepository orderRepository;
-    private ProductRepository productRepository;
-    private ProductInOrderRepository productInOrderRepository;
-    private OrderStatusRepository orderStatusRepository;
-    private ReceiveTypeRepository receiveTypeRepository;
-    private PaymentTypeRepository paymentTypeRepository;
-    private ModelMapper modelMapper;
-    private UserTransactionImp userTransactionImp;
+    private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
+    private final ProductInOrderRepository productInOrderRepository;
+    private final OrderStatusRepository orderStatusRepository;
+    private final ReceiveTypeRepository receiveTypeRepository;
+    private final PaymentTypeRepository paymentTypeRepository;
+    private final ModelMapper modelMapper;
+    private final PickupService pickupService;
+    private final DeliveryService deliveryService;
+    private final TransactionTemplate transactionTemplate;
+
+    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, ProductInOrderRepository productInOrderRepository, OrderStatusRepository orderStatusRepository, ReceiveTypeRepository receiveTypeRepository, PaymentTypeRepository paymentTypeRepository, ModelMapper modelMapper, PickupService pickupService, DeliveryService deliveryService, PlatformTransactionManager platformTransactionManager) {
+        this.orderRepository = orderRepository;
+        this.productRepository = productRepository;
+        this.productInOrderRepository = productInOrderRepository;
+        this.orderStatusRepository = orderStatusRepository;
+        this.receiveTypeRepository = receiveTypeRepository;
+        this.paymentTypeRepository = paymentTypeRepository;
+        this.modelMapper = modelMapper;
+        this.pickupService = pickupService;
+        this.deliveryService = deliveryService;
+        this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
+    }
 
     public void checkOrder(Long id) {
         if (!orderRepository.existsById(id))
@@ -51,16 +64,10 @@ public class OrderService {
         return orderRepository.findOrderById(id);
     }
 
-    public void closeOrder(Long id) {
-        Orders order = orderRepository.findOrderById(id);
-        order.setOrderStatus(orderStatusRepository.findByType("Завершен"));
-        order.setLastStatusDate(new Date());
-        orderRepository.save(order);
-    }
 
-    public Page<Orders> getOrders(Pageable pageable) {
-        return orderRepository.findAll(pageable);
-    }
+//    public Page<Orders> getOrders(Pageable pageable) {
+//        return orderRepository.findAll(pageable);
+//    }
 
 
     public Page<tuchin_emelianov.blps_lab_1.jpa.entity.Product> getProducts(Pageable pageable) {
@@ -71,35 +78,35 @@ public class OrderService {
         return productRepository.findProductById(id);
     }
 
-    public ResultMessage addOrder(Human user, List<Product> products) throws SystemException {
-        Orders order = new Orders();
-        order.setClient(user);
-        order.setDate(new Date());
-        order.setLastStatusDate(new Date());
-        order.setOrderStatus(orderStatusRepository.findByType("Новый"));
+    public ResultMessage addOrder(Human user, List<Product> products) {
+        transactionTemplate.setIsolationLevelName("ISOLATION_REPEATABLE_READ");
+        return transactionTemplate.execute(status -> {
+            Orders order = new Orders();
+            order.setClient(user);
+            order.setDate(new Date());
+            order.setLastStatusDate(new Date());
+            order.setOrderStatus(orderStatusRepository.findByType("Новый"));
 
-        StringBuilder message = new StringBuilder();
-        List<String> names = new ArrayList<>();
-        for (Product value : products) {
-            if (names.contains(value.getName())) {
-                message.append("Товары не должны повторяться");
-                continue;
+            StringBuilder message = new StringBuilder();
+            List<String> names = new ArrayList<>();
+            for (Product value : products) {
+                if (names.contains(value.getName())) {
+                    message.append("Товары не должны повторяться");
+                    continue;
+                }
+                names.add(value.getName());
+                tuchin_emelianov.blps_lab_1.jpa.entity.Product product = productRepository.findProductByName(value.getName());
+                if (product == null) {
+                    message.append("Товар ").append(value.getName()).append(" не найден\n");
+                    continue;
+                }
+                if (product.getCount() < value.getCount()) {
+                    message.append("Недостаточно товара ").append(product.getName()).append(" на складе\n");
+                }
             }
-            names.add(value.getName());
-            tuchin_emelianov.blps_lab_1.jpa.entity.Product product = productRepository.findProductByName(value.getName());
-            if (product == null) {
-                message.append("Товар ").append(value.getName()).append(" не найден\n");
-                continue;
+            if (!message.isEmpty()) {
+                return new ResultMessage(0, message.toString());
             }
-            if (product.getCount() < value.getCount()) {
-                message.append("Недостаточно товара ").append(product.getName()).append(" на складе\n");
-            }
-        }
-        if (!message.isEmpty()) {
-            return new ResultMessage(0, message.toString());
-        }
-        try {
-            userTransactionImp.begin();
             order = orderRepository.save(order);
 
             for (Product value : products) {
@@ -112,12 +119,9 @@ public class OrderService {
                 productInOrder.setCount(value.getCount());
                 productInOrderRepository.save(productInOrder);
             }
-            userTransactionImp.commit();
-        } catch (Exception e) {
-            userTransactionImp.rollback();
-        }
 
-        return new ResultMessage(order.getId(), "Заказ успешно создан! Вам необходимо выбрать способ получения.");
+            return new ResultMessage(order.getId(), "Заказ успешно создан! Вам необходимо выбрать способ получения.");
+        });
     }
 
     private int sumOrder(Orders order) {
@@ -132,115 +136,143 @@ public class OrderService {
         return total;
     }
 
-    public ResultMessage setReceiveType(Long id, String type) {
-        Orders order = orderRepository.findOrderById(id);
+    public ResultMessage setReceiveType(Long id, String type, String address) {
+        transactionTemplate.setIsolationLevelName("ISOLATION_REPEATABLE_READ");
+        return transactionTemplate.execute(status -> {
+            Orders order = orderRepository.findOrderById(id);
 
-        if (order.getOrderStatus() != orderStatusRepository.findByType("Новый")) {
-            return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
-        }
+            if (order.getOrderStatus() != orderStatusRepository.findByType("Новый")) {
+                return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
+            }
 
-        ReceiveType receiveType = receiveTypeRepository.findByType(type);
-        int total = sumOrder(order);
-        if (total < receiveType.getMinSum()) {
-            return new ResultMessage(0, "Для '"+type+"' заказ должен быть больше этой суммы: " + receiveType.getMinSum() + ", сейчас: " + total);
-        }
+            ReceiveType receiveType = receiveTypeRepository.findByType(type);
+            int total = sumOrder(order);
+            if (total < receiveType.getMinSum()) {
+                return new ResultMessage(0, "Для '" + type + "' заказ должен быть больше этой суммы: " + receiveType.getMinSum() + ", сейчас: " + total);
+            }
 
-        order.setReceiveType(receiveType);
-        order.setLastStatusDate(new Date());
-        order.setOrderStatus(orderStatusRepository.findByType("Выбран способ получения"));
+            order.setReceiveType(receiveType);
+            order.setLastStatusDate(new Date());
+            order.setOrderStatus(orderStatusRepository.findByType("Выбран способ получения"));
 
-        orderRepository.save(order);
+            order = orderRepository.save(order);
 
-        return new ResultMessage(order.getId(), "Cпособ получения успешно выбран! Вам необходимо выбрать способ оплаты.");
+            if (type.equals("Самовывоз")) {
+                pickupService.addOrder(order);
+            } else {
+                deliveryService.addOrder(order, address);
+            }
+
+            return new ResultMessage(order.getId(), "Cпособ получения успешно выбран! Вам необходимо выбрать способ оплаты.");
+        });
     }
 
     public ResultMessage setPaymentType(Long id, String type) {
-        Orders order = orderRepository.findOrderById(id);
+        transactionTemplate.setIsolationLevelName("ISOLATION_REPEATABLE_READ");
+        return transactionTemplate.execute(status -> {
+            Orders order = orderRepository.findOrderById(id);
 
-        if (order.getOrderStatus() != orderStatusRepository.findByType("Выбран способ получения")) {
-            return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
-        }
+            if (order.getOrderStatus() != orderStatusRepository.findByType("Выбран способ получения")) {
+                return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
+            }
 
-        PaymentType paymentType = paymentTypeRepository.findByType(type);
-        int total = sumOrder(order);
-        if (total < paymentType.getMinSum()) {
-            return new ResultMessage(0, "Для оплаты '"+type+"' заказ должен быть больше этой суммы: " + paymentType.getMinSum() + ", сейчас: " + total);
-        }
+            PaymentType paymentType = paymentTypeRepository.findByType(type);
+            int total = sumOrder(order);
+            if (total < paymentType.getMinSum()) {
+                return new ResultMessage(0, "Для оплаты '" + type + "' заказ должен быть больше этой суммы: " + paymentType.getMinSum() + ", сейчас: " + total);
+            }
 
-        order.setPaymentType(paymentType);
-        order.setLastStatusDate(new Date());
-        order.setOrderStatus(orderStatusRepository.findByType("Выбран способ оплаты"));
+            order.setPaymentType(paymentType);
+            order.setLastStatusDate(new Date());
+            order.setOrderStatus(orderStatusRepository.findByType("Выбран способ оплаты"));
 
-        orderRepository.save(order);
+            orderRepository.save(order);
 
-        if (type.equals("Онлайн")) {
-            return new ResultMessage(order.getId(), "Cпособ оплаты успешно выбран! Вам необходимо оплатить заказ.");
-        } else {
-            return new ResultMessage(order.getId(), "Cпособ оплаты успешно выбран! Оплатить заказ нужно будет курьеру.");
-        }
+            if (type.equals("Онлайн")) {
+                return new ResultMessage(order.getId(), "Cпособ оплаты успешно выбран! Вам необходимо оплатить заказ.");
+            } else {
+                return new ResultMessage(order.getId(), "Cпособ оплаты успешно выбран! Оплатить заказ нужно будет курьеру.");
+            }
+        });
     }
 
     public ResultMessage payOnline(Long id) {
-        Orders order = orderRepository.findOrderById(id);
-        if (order.getOrderStatus() == orderStatusRepository.findByType("Выбран способ оплаты") && order.getPaymentType() == paymentTypeRepository.findByType("Онлайн")) {
-            order.setLastStatusDate(new Date());
-            order.setOrderStatus(orderStatusRepository.findByType("Оплачен онлайн"));
-            orderRepository.save(order);
-            return new ResultMessage(order.getId(), "Оплата успешна произведена");
-        } else {
-            return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
-        }
+        transactionTemplate.setIsolationLevelName("ISOLATION_READ_COMMITTED");
+        return transactionTemplate.execute(status -> {
+            Orders order = orderRepository.findOrderById(id);
+            if (order.getOrderStatus() == orderStatusRepository.findByType("Выбран способ оплаты") && order.getPaymentType() == paymentTypeRepository.findByType("Онлайн")) {
+                order.setLastStatusDate(new Date());
+                order.setOrderStatus(orderStatusRepository.findByType("Оплачен онлайн"));
+                orderRepository.save(order);
+                return new ResultMessage(order.getId(), "Оплата успешна произведена");
+            } else {
+                return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
+            }
+        });
     }
 
     public ResultMessage payDelivery(Orders order) {
-        if (order.getOrderStatus() == orderStatusRepository.findByType("Передан в доставку") && order.getPaymentType() == paymentTypeRepository.findByType("При получении")) {
-            order.setLastStatusDate(new Date());
-            order.setOrderStatus(orderStatusRepository.findByType("Оплачен курьеру"));
-            orderRepository.save(order);
-            return new ResultMessage(order.getId(), "Оплата успешна произведена");
-        } else {
-            return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
-        }
+        transactionTemplate.setIsolationLevelName("ISOLATION_READ_COMMITTED");
+        return transactionTemplate.execute(status -> {
+            if (order.getOrderStatus() == orderStatusRepository.findByType("Передан в доставку") && order.getPaymentType() == paymentTypeRepository.findByType("При получении")) {
+                order.setLastStatusDate(new Date());
+                order.setOrderStatus(orderStatusRepository.findByType("Оплачен курьеру"));
+                orderRepository.save(order);
+                return new ResultMessage(order.getId(), "Оплата успешна произведена");
+            } else {
+                return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
+            }
+        });
+
     }
 
     public ResultMessage work(Long id, Human user) {
-        Orders order = orderRepository.findOrderById(id);
+        transactionTemplate.setIsolationLevelName("ISOLATION_REPEATABLE_READ");
+        return transactionTemplate.execute(status -> {
+            Orders order = orderRepository.findOrderById(id);
 
-        if (
-            order.getOrderStatus().getType().equals("Оплачен онлайн")
-            || (
-                order.getOrderStatus().getType().equals("Выбран способ оплаты")
-                && order.getReceiveType().getType().equals("Доставка")
-            ))
-        {
-            order.setWorker(user);
-            order.setLastStatusDate(new Date());
-            order.setOrderStatus(orderStatusRepository.findByType("В работе"));
-            orderRepository.save(order);
-            return new ResultMessage(order.getId(), "Заказ взят в работу сотрудником: " + user.getFio());
-        } else {
-            return new ResultMessage(0, "Нельзя взять заказ в работу");
-        }
+            if (
+                    order.getOrderStatus().getType().equals("Оплачен онлайн")
+                            || (
+                            order.getOrderStatus().getType().equals("Выбран способ оплаты")
+                                    && order.getReceiveType().getType().equals("Доставка")
+                    )) {
+                order.setWorker(user);
+                order.setLastStatusDate(new Date());
+                order.setOrderStatus(orderStatusRepository.findByType("В работе"));
+                orderRepository.save(order);
+                return new ResultMessage(order.getId(), "Заказ взят в работу сотрудником: " + user.getFio());
+            } else {
+                return new ResultMessage(0, "Нельзя взять заказ в работу");
+            }
+        });
     }
 
     public ResultMessage done(Long id, Human user) {
-        Orders order = orderRepository.findOrderById(id);
+        transactionTemplate.setIsolationLevelName("ISOLATION_READ_COMMITTED");
+        return transactionTemplate.execute(status -> {
+            Orders order = orderRepository.findOrderById(id);
 
-        if (!order.getOrderStatus().getType().equals("В работе")) {
-            return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
-        }
-        if (!order.getWorker().equals(user)) {
-            return new ResultMessage(0, "Заказ в работе у другого сотрудника");
-        }
-        order.setLastStatusDate(new Date());
+            if (!order.getOrderStatus().getType().equals("В работе")) {
+                return new ResultMessage(0, "Недопустимый статус заказа: " + order.getOrderStatus().getType());
+            }
+            if (!order.getWorker().equals(user)) {
+                return new ResultMessage(0, "Заказ в работе у другого сотрудника");
+            }
+            order.setLastStatusDate(new Date());
 
-
-        if (order.getReceiveType().equals(receiveTypeRepository.findByType("Доставка"))) {
-            order.setOrderStatus(orderStatusRepository.findByType("Передан в доставку"));
-        } else {
-            order.setOrderStatus(orderStatusRepository.findByType("Готов к выдаче"));
-        }
-        orderRepository.save(order);
-        return new ResultMessage(order.getId(), "Заказ собран сотрудником: " + user.getFio());
+            if (order.getReceiveType().equals(receiveTypeRepository.findByType("Доставка"))) {
+                order.setOrderStatus(orderStatusRepository.findByType("Передан в доставку"));
+            } else {
+                order.setOrderStatus(orderStatusRepository.findByType("Готов к выдаче"));
+            }
+            orderRepository.save(order);
+            if (order.getReceiveType().getType().equals("Самовывоз")) {
+                pickupService.updateOrder(order);
+            } else {
+                deliveryService.updateOrder(order);
+            }
+            return new ResultMessage(order.getId(), "Заказ собран сотрудником: " + user.getFio());
+        });
     }
 }
