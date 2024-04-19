@@ -2,12 +2,13 @@ package tuchin_emelianov.blps_lab_1.config;
 
 import com.atomikos.icatch.jta.UserTransactionImp;
 import com.atomikos.icatch.jta.UserTransactionManager;
-import com.atomikos.jdbc.AtomikosDataSourceBean;
+import com.atomikos.spring.AtomikosDataSourceBean;
 import jakarta.transaction.SystemException;
 import org.postgresql.xa.PGXADataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.jta.JtaTransactionManager;
 
@@ -35,15 +36,15 @@ public class TransactionConfiguration {
     }
 
     @Bean
-    public UserTransactionImp myTransactionImp() {
+    public UserTransactionImp userTransactionImp() {
         return new UserTransactionImp();
     }
+
 
     @Bean(initMethod = "init", destroyMethod = "close")
     public UserTransactionManager userTransactionManager() throws SystemException {
         UserTransactionManager userTransactionManager = new UserTransactionManager();
         userTransactionManager.setTransactionTimeout(300);
-        userTransactionManager.setForceShutdown(true);
         return userTransactionManager;
     }
 
@@ -51,7 +52,13 @@ public class TransactionConfiguration {
     public JtaTransactionManager transactionManager() throws SystemException {
         JtaTransactionManager jtaTransactionManager = new JtaTransactionManager();
         jtaTransactionManager.setTransactionManager(userTransactionManager());
-        jtaTransactionManager.setUserTransaction(myTransactionImp());
+        jtaTransactionManager.setUserTransaction(userTransactionImp());
+        jtaTransactionManager.setAllowCustomIsolationLevels(true);
         return jtaTransactionManager;
+    }
+
+    @Bean
+    public PlatformTransactionManager platformTransactionManager() throws SystemException {
+        return transactionManager();
     }
 }
