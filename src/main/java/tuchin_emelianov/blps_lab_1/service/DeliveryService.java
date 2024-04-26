@@ -1,8 +1,11 @@
 package tuchin_emelianov.blps_lab_1.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -17,8 +20,10 @@ import tuchin_emelianov.blps_lab_1.jpa.repository.DeliveryRepository;
 import tuchin_emelianov.blps_lab_1.jpa.repository.DeliveryStatusRepository;
 import tuchin_emelianov.blps_lab_1.jpa.repository.OrderRepository;
 import tuchin_emelianov.blps_lab_1.jpa.repository.OrderStatusRepository;
+import tuchin_emelianov.blps_lab_1.request.MessageDTO;
 
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class DeliveryService {
@@ -29,14 +34,16 @@ public class DeliveryService {
     private final OrderRepository orderRepository;
     private final OrderStatusRepository orderStatusRepository;
     private final TransactionTemplate transactionTemplate;
+    private final JmsTemplate rabbitMQProducer;
 
-    public DeliveryService(DeliveryStatusRepository deliveryStatusRepository, DeliveryRepository deliveryRepository, ModelMapper modelMapper, OrderRepository orderRepository, OrderStatusRepository orderStatusRepository, PlatformTransactionManager platformTransactionManager) {
+    public DeliveryService(DeliveryStatusRepository deliveryStatusRepository, DeliveryRepository deliveryRepository, ModelMapper modelMapper, OrderRepository orderRepository, OrderStatusRepository orderStatusRepository, PlatformTransactionManager platformTransactionManager, JmsTemplate jmsTemplate) {
         this.deliveryStatusRepository = deliveryStatusRepository;
         this.deliveryRepository = deliveryRepository;
         this.modelMapper = modelMapper;
         this.orderRepository = orderRepository;
         this.orderStatusRepository = orderStatusRepository;
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
+        this.rabbitMQProducer = jmsTemplate;
     }
 
 
@@ -95,6 +102,21 @@ public class DeliveryService {
                     delivery.setStatus(deliveryStatusRepository.findByType("Доставлено"));
                     delivery.setDate(new Date());
                     deliveryRepository.save(delivery);
+                    try {
+                        rabbitMQProducer.convertAndSend(
+                                "messages",
+                                new ObjectMapper().writeValueAsString(
+                                        new MessageDTO(
+                                                "Заказ доставлен",
+                                                "Order"+order.getId(),
+                                                false,
+                                                List.of(order.getClient().getUser().getUsername())
+                                        )
+                                )
+                        );
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
                     return new ResultMessage(order.getId(), "Заказ доставлен!");
                 } else {
                     return new ResultMessage(0, "Заказ доставляется другим курьером");

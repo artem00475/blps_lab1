@@ -1,8 +1,11 @@
 package tuchin_emelianov.blps_lab_1.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -11,6 +14,7 @@ import tuchin_emelianov.blps_lab_1.exceptions.ElementNotFoundException;
 import tuchin_emelianov.blps_lab_1.exceptions.EntityNotFoundException;
 import tuchin_emelianov.blps_lab_1.jpa.entity.*;
 import tuchin_emelianov.blps_lab_1.jpa.repository.*;
+import tuchin_emelianov.blps_lab_1.request.MessageDTO;
 import tuchin_emelianov.blps_lab_1.request.Product;
 
 import java.util.ArrayList;
@@ -30,8 +34,9 @@ public class OrderService {
     private final PickupService pickupService;
     private final DeliveryService deliveryService;
     private final TransactionTemplate transactionTemplate;
+    private final JmsTemplate rabbitMQProducer;
 
-    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, ProductInOrderRepository productInOrderRepository, OrderStatusRepository orderStatusRepository, ReceiveTypeRepository receiveTypeRepository, PaymentTypeRepository paymentTypeRepository, ModelMapper modelMapper, PickupService pickupService, DeliveryService deliveryService, PlatformTransactionManager platformTransactionManager) {
+    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, ProductInOrderRepository productInOrderRepository, OrderStatusRepository orderStatusRepository, ReceiveTypeRepository receiveTypeRepository, PaymentTypeRepository paymentTypeRepository, ModelMapper modelMapper, PickupService pickupService, DeliveryService deliveryService, PlatformTransactionManager platformTransactionManager, JmsTemplate jmsTemplate) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.productInOrderRepository = productInOrderRepository;
@@ -42,6 +47,7 @@ public class OrderService {
         this.pickupService = pickupService;
         this.deliveryService = deliveryService;
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
+        this.rabbitMQProducer = jmsTemplate;
     }
 
     public void checkOrder(Long id) {
@@ -191,6 +197,21 @@ public class OrderService {
             if (type.equals("Онлайн")) {
                 return new ResultMessage(order.getId(), "Cпособ оплаты успешно выбран! Вам необходимо оплатить заказ.");
             } else {
+                try {
+                    rabbitMQProducer.convertAndSend(
+                            "messages",
+                            new ObjectMapper().writeValueAsString(
+                                    new MessageDTO(
+                                            "Заказ готов к сборке",
+                                            "Order"+order.getId(),
+                                            true,
+                                            List.of("Работник")
+                                    )
+                            )
+                    );
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
                 return new ResultMessage(order.getId(), "Cпособ оплаты успешно выбран! Оплатить заказ нужно будет курьеру.");
             }
         });
@@ -267,10 +288,34 @@ public class OrderService {
                 order.setOrderStatus(orderStatusRepository.findByType("Готов к выдаче"));
             }
             orderRepository.save(order);
+            String mess;
+            String obj;
+            String role;
             if (order.getReceiveType().getType().equals("Самовывоз")) {
                 pickupService.updateOrder(order);
+                mess = "Создан новый заказ на самовывоз";
+                obj = "Pickup"+order.getId();
+                role = "Работник";
             } else {
                 deliveryService.updateOrder(order);
+                mess = "Создан новый заказ на доставку";
+                obj = "Delivery"+order.getId();
+                role = "Курьер";
+            }
+            try {
+                rabbitMQProducer.convertAndSend(
+                        "messages",
+                        new ObjectMapper().writeValueAsString(
+                                new MessageDTO(
+                                        mess,
+                                        obj,
+                                        true,
+                                        List.of(role)
+                                )
+                        )
+                );
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
             }
             return new ResultMessage(order.getId(), "Заказ собран сотрудником: " + user.getFio());
         });

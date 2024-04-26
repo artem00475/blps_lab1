@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Date;
+import java.util.Set;
 
 /*
 * ФИО
@@ -28,4 +29,7 @@ public class Human {
 
     @OneToOne(fetch = FetchType.EAGER)
     private User user;
+
+    @OneToMany
+    private Set<Message> messages;
 }

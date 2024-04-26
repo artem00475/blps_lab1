@@ -12,6 +12,7 @@ import tuchin_emelianov.blps_lab_1.jpa.repository.RoleRepository;
 import tuchin_emelianov.blps_lab_1.jpa.repository.UserRepository;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -25,6 +26,11 @@ public class UserService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         System.out.println(username);
         return userRepository.findByUsername(username);
+    }
+    
+    public List<User> getUsersByRole(String name) {
+        Role role = roleRepository.findByName(name);
+        return userRepository.findUsersByRoles(role);
     }
 
     public User getUser(String username) {return userRepository.findByUsername(username);}

@@ -30,6 +30,8 @@ public class HumanService {
         return humanRepository.findByUser(user);
     }
 
+    public Human getHumanByUsername(String username) {return humanRepository.findByUser(userService.getUser(username));}
+
     public Human addUser(String fio, String mail, String phone, String username, String password, String role) {
         transactionTemplate.setIsolationLevelName("ISOLATION_REPEATABLE_READ");
         return transactionTemplate.execute(status -> {

@@ -1,8 +1,11 @@
 package tuchin_emelianov.blps_lab_1.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -15,8 +18,10 @@ import tuchin_emelianov.blps_lab_1.jpa.repository.OrderRepository;
 import tuchin_emelianov.blps_lab_1.jpa.repository.OrderStatusRepository;
 import tuchin_emelianov.blps_lab_1.jpa.repository.PickupRepository;
 import tuchin_emelianov.blps_lab_1.jpa.repository.ReceiveStatusRepository;
+import tuchin_emelianov.blps_lab_1.request.MessageDTO;
 
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class PickupService {
@@ -27,14 +32,16 @@ public class PickupService {
     private final TransactionTemplate transactionTemplate;
     private final OrderRepository orderRepository;
     private final OrderStatusRepository orderStatusRepository;
+    private final JmsTemplate rabbitMQProducer;
 
-    public PickupService(PickupRepository pickupRepository, ReceiveStatusRepository receiveStatusRepository, ModelMapper modelMapper, PlatformTransactionManager platformTransactionManager, OrderRepository orderRepository, OrderStatusRepository orderStatusRepository) {
+    public PickupService(PickupRepository pickupRepository, ReceiveStatusRepository receiveStatusRepository, ModelMapper modelMapper, PlatformTransactionManager platformTransactionManager, OrderRepository orderRepository, OrderStatusRepository orderStatusRepository, JmsTemplate jmsTemplate) {
         this.pickupRepository = pickupRepository;
         this.receiveStatusRepository = receiveStatusRepository;
         this.modelMapper = modelMapper;
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
         this.orderRepository = orderRepository;
         this.orderStatusRepository = orderStatusRepository;
+        this.rabbitMQProducer = jmsTemplate;
     }
 
 
@@ -69,6 +76,21 @@ public class PickupService {
                 pickup.setWorker(worker);
                 pickup.setDate(new Date());
                 pickupRepository.save(pickup);
+                try {
+                    rabbitMQProducer.convertAndSend(
+                            "messages",
+                            new ObjectMapper().writeValueAsString(
+                                    new MessageDTO(
+                                            "Заказ готов к выдаче",
+                                            "Order"+order.getId(),
+                                            false,
+                                            List.of(order.getClient().getUser().getUsername())
+                                    )
+                            )
+                    );
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
                 return new ResultMessage(order.getId(), "Заказ выдан!");
             } else {
                 return new ResultMessage(0, "Некорректный статус выдачи заказа: " + pickup.getReceiveStatus().getType());
