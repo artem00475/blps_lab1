@@ -175,5 +175,9 @@ public class DeliveryService {
         delivery.setStatus(deliveryStatusRepository.findByType("Ожидает обработки"));
         deliveryRepository.save(delivery);
     }
+    
+    public List<Delivery> getDelayedDeliveries() {
+        return deliveryRepository.findAllByDateLessThanAndStatus(new Date(), deliveryStatusRepository.findByType("Ожидает обработки"));
+    }
 
 }

@@ -54,9 +54,6 @@ public class MessageService {
 
     private void handleMessage(String receivedMessage) throws JsonProcessingException {
         MessageDTO messageDTO = new ObjectMapper().readValue(receivedMessage,MessageDTO.class );
-        Message message = new Message();
-        message.setContent(messageDTO.getContent());
-        message.setObject(messageDTO.getObject());
         Set<String> usernames = new LinkedHashSet<>();
         if (messageDTO.isRoles()) {
             messageDTO.getTo().forEach(role -> {
@@ -66,6 +63,9 @@ public class MessageService {
             usernames.addAll(messageDTO.getTo());
         }
         usernames.forEach(username -> {
+            Message message = new Message();
+            message.setContent(messageDTO.getContent());
+            message.setObject(messageDTO.getObject());
             message.setReceiver(humanService.getHumanByUsername(username));
             addMessage(message);
         });

@@ -8,6 +8,9 @@ import tuchin_emelianov.blps_lab_1.jpa.entity.Human;
 import tuchin_emelianov.blps_lab_1.jpa.entity.OrderStatus;
 import tuchin_emelianov.blps_lab_1.jpa.entity.Orders;
 
+import java.util.Date;
+import java.util.List;
+
 public interface OrderRepository extends JpaRepository<Orders, Long> {
     @Query("select o from Orders o left join o.worker w left join o.receiveType r left join o.paymentType p left join o.orderStatus s left join o.client c where o.id = ?1")
     Orders findOrderById (Long id);
@@ -16,5 +19,6 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     Orders findOrderByWorker (Human worker);
     @Query("select o from Orders o left join o.worker w left join o.receiveType r left join o.paymentType p left join o.orderStatus s left join o.client c")
     Page<Orders> findAll(Pageable pageable);
+    List<Orders> findAllByLastStatusDateLessThanAndOrderStatusIn(Date dateTime, List<OrderStatus> statuses);
 
 }

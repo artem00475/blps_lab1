@@ -320,4 +320,8 @@ public class OrderService {
             return new ResultMessage(order.getId(), "Заказ собран сотрудником: " + user.getFio());
         });
     }
+
+    public List<Orders> getDelayedOrders() {
+        return orderRepository.findAllByLastStatusDateLessThanAndOrderStatusIn(new Date(), List.of(orderStatusRepository.findByType("Оплачен онлайн"), orderStatusRepository.findByType("Выбран способ оплаты")));
+    }
 }

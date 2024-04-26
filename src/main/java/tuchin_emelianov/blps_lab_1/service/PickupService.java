@@ -137,4 +137,8 @@ public class PickupService {
         pickupRepository.save(pickup);
     }
 
+    public List<Pickup> getDelayedPickups() {
+        return pickupRepository.findAllByDateLessThanAndReceiveStatus(new Date(), receiveStatusRepository.findByType("Ожидает обработки"));
+    }
+
 }
