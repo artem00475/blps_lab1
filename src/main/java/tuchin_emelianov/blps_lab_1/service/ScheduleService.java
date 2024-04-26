@@ -3,6 +3,8 @@ package tuchin_emelianov.blps_lab_1.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -21,8 +23,11 @@ public class ScheduleService {
     private final DeliveryService deliveryService;
     private final JmsTemplate rabbitMQProducer;
 
-    @Scheduled(cron = "0 0 8 * * 1,2,3,4,5,6", zone = "Europe/Moscow")
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScheduleService.class);
+
+    @Scheduled(cron = "0 0 8 * * 1,2,3,4,5", zone = "Europe/Moscow")
     public void checkOrderStatus(){
+        LOGGER.info("Checking delayed orders");
         List<Orders> orders = orderService.getDelayedOrders();
         orders.forEach(order -> {
             try {
@@ -42,8 +47,10 @@ public class ScheduleService {
             }
         });
     }
+    
     @Scheduled(cron = "0 0 8 * * 1,2,3,4,5", zone = "Europe/Moscow")
     public void checkPickupStatus(){
+        LOGGER.info("Checking delayed pickups");
         List<Pickup> pickups = pickupService.getDelayedPickups();
         pickups.forEach(pickup -> {
             try {
@@ -63,8 +70,10 @@ public class ScheduleService {
             }
         });
     }
+    
     @Scheduled(cron = "0 0 8 * * 1,2,3,4,5", zone = "Europe/Moscow")
     public void checkDeliveryStatus(){
+        LOGGER.info("Checking delayed deliveries");
         List<Delivery> deliveries = deliveryService.getDelayedDeliveries();
         deliveries.forEach(delivery -> {
             try {

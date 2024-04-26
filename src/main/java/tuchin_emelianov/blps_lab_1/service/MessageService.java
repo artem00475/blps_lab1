@@ -3,7 +3,9 @@ package tuchin_emelianov.blps_lab_1.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
 import org.modelmapper.ModelMapper;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jms.annotation.JmsListener;
@@ -25,6 +27,8 @@ public class MessageService {
     private UserService userService;
     private ModelMapper modelMapper;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageService.class);
+
     private void addMessage(Message message) {
         messageRepository.save(message);
     }
@@ -40,15 +44,15 @@ public class MessageService {
         return messagePage.map(messages -> modelMapper.map(messages, NotificationDTO.class));
     }
 
-    @JmsListener(destination = "messages")
+    @JmsListener(destination = "messages", id = "first")
     public void receiveMessage1(String message) throws JsonProcessingException {
-        System.out.println("received 1: "+ message);
+        LOGGER.info(message);
         handleMessage(message);
     }
 
-    @JmsListener(destination = "messages")
+    @JmsListener(destination = "messages", id="second")
     public void receiveMessage2(String message) throws JsonProcessingException {
-        System.out.println("received 2: "+ message);
+        LOGGER.info(message);
         handleMessage(message);
     }
 
